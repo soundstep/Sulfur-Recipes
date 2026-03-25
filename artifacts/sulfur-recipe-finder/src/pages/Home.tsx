@@ -19,11 +19,16 @@ function requiredQty(ing: string): number {
   return m ? parseInt(m[1], 10) : 1;
 }
 
-function hasIngredient(ing: string, haveMap: Map<string, number>): boolean {
-  return (haveMap.get(baseName(ing)) ?? 0) >= requiredQty(ing);
+function hasIngredient(ing: string, haveMap: Map<string, number>, catMems: Record<string, string[]> = {}): boolean {
+  const base = baseName(ing);
+  const qty = requiredQty(ing);
+  if ((haveMap.get(base) ?? 0) >= qty) return true;
+  const members = catMems[base];
+  if (members) return members.some(m => (haveMap.get(m) ?? 0) >= qty);
+  return false;
 }
 
-function buildCraftableSet(haveMap: Map<string, number>, allRecipes: Recipe[]) {
+function buildCraftableSet(haveMap: Map<string, number>, allRecipes: Recipe[], catMems: Record<string, string[]> = {}) {
   const craftable = new Set<string>(haveMap.keys());
   let changed = true;
   while (changed) {
@@ -32,9 +37,12 @@ function buildCraftableSet(haveMap: Map<string, number>, allRecipes: Recipe[]) {
       const rLow = r.name.toLowerCase();
       if (craftable.has(rLow)) continue;
       const canMake = r.variants.some(v => v.every(i => {
+        if (hasIngredient(i, haveMap, catMems)) return true;
         const base = baseName(i);
-        if (haveMap.has(base)) return hasIngredient(i, haveMap);
-        return craftable.has(base);
+        if (craftable.has(base)) return true;
+        const members = catMems[base];
+        if (members && members.some(m => craftable.has(m))) return true;
+        return false;
       }));
       if (canMake) {
         craftable.add(rLow);
@@ -45,27 +53,36 @@ function buildCraftableSet(haveMap: Map<string, number>, allRecipes: Recipe[]) {
   return craftable;
 }
 
-function scoreRecipe(recipe: Recipe, haveMap: Map<string, number>, craftableSet: Set<string>): ScoredRecipe {
-  const directVariant = recipe.variants.find(v => v.every(i => hasIngredient(i, haveMap)));
+function scoreRecipe(
+  recipe: Recipe,
+  haveMap: Map<string, number>,
+  craftableSet: Set<string>,
+  catMems: Record<string, string[]> = {}
+): ScoredRecipe {
+  const have = (i: string) => hasIngredient(i, haveMap, catMems);
+
+  const directVariant = recipe.variants.find(v => v.every(have));
   const chainVariant = !directVariant && recipe.variants.find(v => v.every(i => {
+    if (have(i)) return true;
     const base = baseName(i);
-    if (haveMap.has(base)) return hasIngredient(i, haveMap);
-    return craftableSet.has(base);
+    if (craftableSet.has(base)) return true;
+    const members = catMems[base];
+    return !!(members && members.some(m => craftableSet.has(m)));
   }));
   
   let bestVariant = recipe.variants[0] || [];
   let bestCount = -1;
   recipe.variants.forEach(v => {
-    const c = v.filter(i => hasIngredient(i, haveMap)).length;
+    const c = v.filter(have).length;
     if (c > bestCount) { bestCount = c; bestVariant = v; }
   });
 
   const displayVariant = directVariant || chainVariant || bestVariant;
   const total = displayVariant.length;
-  const haveCount = displayVariant.filter(i => hasIngredient(i, haveMap)).length;
+  const haveCount = displayVariant.filter(have).length;
   
   const chainSteps = chainVariant
-    ? chainVariant.filter(i => !hasIngredient(i, haveMap) && craftableSet.has(baseName(i)))
+    ? chainVariant.filter(i => !have(i) && (craftableSet.has(baseName(i)) || (catMems[baseName(i)] ?? []).some(m => craftableSet.has(m))))
     : [];
   const pct = total === 0 ? 0 : haveCount / total;
 
@@ -79,7 +96,8 @@ function scoreRecipe(recipe: Recipe, haveMap: Map<string, number>, craftableSet:
     total,
     pct,
     haveMap,
-    craftableSet
+    craftableSet,
+    catMems
   };
 }
 

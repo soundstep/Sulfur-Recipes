@@ -17,6 +17,7 @@ export interface Recipe {
 
 export interface RecipesResponse {
   recipes: Recipe[];
+  categoryMembers: Record<string, string[]>;
   count: number;
   cachedAt: string;
 }

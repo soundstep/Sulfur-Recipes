@@ -97,12 +97,20 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Recipe"
+        categoryMembers:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          description: Map of lowercase label (e.g. "any flesh") to lowercase member names
         count:
           type: integer
         cachedAt:
           type: string
       required:
         - recipes
+        - categoryMembers
         - count
         - cachedAt
     ErrorResponse:

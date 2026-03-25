@@ -36,8 +36,9 @@ const RECIPE_SLUGS = [
   "Tori_Ramen","Tube_Caviar","Unagi","Vacuum_Cleaner","Extra_Lung","Springcoil_Boot"
 ];
 
-function parseRecipeRows(wikitext: string): string[][] {
+function parseRecipeRows(wikitext: string): { variants: string[][]; categoryMap: Record<string, string> } {
   const variants: string[][] = [];
+  const categoryMap: Record<string, string> = {};
 
   const recipeSection = wikitext.split(/==\s*[Rr]ecipes?\s*==/)[1] || wikitext;
 
@@ -62,6 +63,13 @@ function parseRecipeRows(wikitext: string): string[][] {
         const label = labelMatch[1].trim();
         if (label && !label.startsWith(":") && label !== "(blank)") {
           ingredients.push(label + qtySuffix);
+          if (keyMatch) {
+            const key = keyMatch[1].trim();
+            if (key.startsWith(":Category:")) {
+              const catName = key.replace(":Category:", "").trim();
+              categoryMap[label.toLowerCase()] = catName;
+            }
+          }
         }
       } else if (keyMatch) {
         const ing = keyMatch[1].trim();
@@ -76,7 +84,7 @@ function parseRecipeRows(wikitext: string): string[][] {
     }
   }
 
-  return variants;
+  return { variants, categoryMap };
 }
 
 function detectType(wikitext: string): string {
@@ -86,58 +94,88 @@ function detectType(wikitext: string): string {
   return "consumable";
 }
 
-async function fetchRecipeFromApi(slug: string): Promise<Recipe | null> {
+async function fetchCategoryMembers(catName: string): Promise<string[]> {
+  const url = `https://sulfur.wiki.gg/api.php?action=query&list=categorymembers&cmtitle=Category:${encodeURIComponent(catName)}&cmlimit=100&format=json`;
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "SulfurRecipeFinder/1.0" },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json() as { query?: { categorymembers?: Array<{ title: string }> } };
+    return (data.query?.categorymembers ?? []).map(m => m.title.toLowerCase());
+  } catch {
+    return [];
+  }
+}
+
+async function fetchRecipeFromApi(slug: string): Promise<{ recipe: Recipe | null; categoryMap: Record<string, string> }> {
   const url = `https://sulfur.wiki.gg/api.php?action=parse&page=${slug}&prop=wikitext&format=json`;
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": "SulfurRecipeFinder/1.0" },
       signal: AbortSignal.timeout(10000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) return { recipe: null, categoryMap: {} };
 
     const data = await res.json() as { parse?: { title?: string; wikitext?: { "*": string } }; error?: unknown };
-    if (data.error || !data.parse?.wikitext?.["*"]) return null;
+    if (data.error || !data.parse?.wikitext?.["*"]) return { recipe: null, categoryMap: {} };
 
     const wikitext = data.parse.wikitext["*"];
     const name = data.parse.title || decodeURIComponent(slug).replace(/_/g, " ");
-    const variants = parseRecipeRows(wikitext);
+    const { variants, categoryMap } = parseRecipeRows(wikitext);
 
-    if (variants.length === 0) return null;
+    if (variants.length === 0) return { recipe: null, categoryMap: {} };
 
     const type = detectType(wikitext);
-    return { name, type, variants };
+    return { recipe: { name, type, variants }, categoryMap };
   } catch {
-    return null;
+    return { recipe: null, categoryMap: {} };
   }
 }
 
-let cachedRecipes: Recipe[] | null = null;
+interface RecipeCache {
+  recipes: Recipe[];
+  categoryMembers: Record<string, string[]>;
+}
+
+let cachedData: RecipeCache | null = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 60 * 60 * 1000;
 
-async function getRecipes(): Promise<Recipe[]> {
-  if (cachedRecipes && Date.now() - cacheTimestamp < CACHE_TTL) {
-    return cachedRecipes;
+async function getRecipesData(): Promise<RecipeCache> {
+  if (cachedData && Date.now() - cacheTimestamp < CACHE_TTL) {
+    return cachedData;
   }
 
   const results: Recipe[] = [];
+  const globalCategoryMap: Record<string, string> = {};
   const CONCURRENCY = 10;
 
   for (let i = 0; i < RECIPE_SLUGS.length; i += CONCURRENCY) {
     const batch = RECIPE_SLUGS.slice(i, i + CONCURRENCY);
     const fetched = await Promise.all(batch.map(s => fetchRecipeFromApi(s)));
-    fetched.forEach(r => { if (r) results.push(r); });
+    fetched.forEach(({ recipe, categoryMap }) => {
+      if (recipe) results.push(recipe);
+      Object.assign(globalCategoryMap, categoryMap);
+    });
   }
 
-  cachedRecipes = results;
+  const categoryMembers: Record<string, string[]> = {};
+  const uniqueCategories = Object.entries(globalCategoryMap);
+  await Promise.all(uniqueCategories.map(async ([label, catName]) => {
+    categoryMembers[label] = await fetchCategoryMembers(catName);
+  }));
+
+  cachedData = { recipes: results, categoryMembers };
   cacheTimestamp = Date.now();
-  return results;
+  return cachedData;
 }
 
 router.get("/recipes", async (req, res) => {
   try {
-    const recipes = await getRecipes();
-    res.json({ recipes, count: recipes.length, cachedAt: new Date(cacheTimestamp).toISOString() });
+    const { recipes, categoryMembers } = await getRecipesData();
+    res.json({ recipes, categoryMembers, count: recipes.length, cachedAt: new Date(cacheTimestamp).toISOString() });
   } catch (err) {
     req.log.error({ err }, "Failed to fetch recipes");
     res.status(500).json({ error: "Failed to fetch recipes from wiki" });
@@ -145,11 +183,11 @@ router.get("/recipes", async (req, res) => {
 });
 
 router.post("/recipes/refresh", async (req, res) => {
-  cachedRecipes = null;
+  cachedData = null;
   cacheTimestamp = 0;
   try {
-    const recipes = await getRecipes();
-    res.json({ recipes, count: recipes.length, cachedAt: new Date(cacheTimestamp).toISOString() });
+    const { recipes, categoryMembers } = await getRecipesData();
+    res.json({ recipes, categoryMembers, count: recipes.length, cachedAt: new Date(cacheTimestamp).toISOString() });
   } catch (err) {
     req.log.error({ err }, "Failed to refresh recipes");
     res.status(500).json({ error: "Failed to refresh recipes from wiki" });
