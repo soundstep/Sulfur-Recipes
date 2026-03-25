@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SULFUR Recipe Finder</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --panel: #111118;
+    --border: #2a2a3a;
+    --accent: #c8ff00;
+    --accent2: #ff6b35;
+    --chain: #00d4ff;
+    --text: #e0e0e0;
+    --muted: #555570;
+    --glow: rgba(200,255,0,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow Condensed', sans-serif;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(200,255,0,0.012) 2px, rgba(200,255,0,0.012) 3px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 1140px; margin: 0 auto; padding: 1.5rem 2rem; position: relative; z-index: 1; }
+
+  header { text-align: center; margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+  header .game-title { font-size: 0.7rem; letter-spacing: 0.4em; color: var(--accent); font-family: 'Share Tech Mono', monospace; margin-bottom: 0.3rem; }
+  header h1 { font-size: 3rem; font-weight: 900; letter-spacing: -0.02em; text-transform: uppercase; background: linear-gradient(135deg, #fff 0%, var(--accent) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  header p { color: var(--muted); font-size: 0.85rem; margin-top: 0.3rem; font-family: 'Share Tech Mono', monospace; }
+
+  .layout { display: grid; grid-template-columns: 300px 1fr; gap: 1.25rem; align-items: start; }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 2px; padding: 1.1rem; }
+
+  .panel-title { font-size: 0.6rem; letter-spacing: 0.35em; color: var(--accent); text-transform: uppercase; font-family: 'Share Tech Mono', monospace; margin-bottom: 0.9rem; display: flex; align-items: center; gap: 0.5rem; }
+  .panel-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  textarea {
+    width: 100%; background: #0d0d14; border: 1px solid var(--border); color: var(--text);
+    font-family: 'Share Tech Mono', monospace; font-size: 0.78rem; padding: 0.65rem;
+    resize: vertical; min-height: 90px; border-radius: 2px; outline: none; transition: border-color 0.2s; line-height: 1.7;
+  }
+  textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--glow); }
+  textarea::placeholder { color: var(--muted); }
+
+  .btn { width: 100%; padding: 0.65rem 1rem; background: var(--accent); color: #0a0a0f; border: none; font-family: 'Barlow Condensed', sans-serif; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; border-radius: 2px; transition: all 0.15s; margin-top: 0.5rem; display: block; }
+  .btn:hover:not(:disabled) { background: #d4ff20; transform: translateY(-1px); }
+  .btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); font-size: 0.75rem; padding: 0.45rem; }
+  .btn-ghost:hover:not(:disabled) { background: var(--border); color: var(--text); transform: none; }
+
+  .status { font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; margin: 0.6rem 0 0; min-height: 1.8em; line-height: 1.5; color: var(--muted); }
+  .status.loading { color: var(--accent); }
+  .status.error { color: var(--accent2); }
+  .status.ok { color: var(--accent); }
+
+  .tag-grid { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.75rem; max-height: 200px; overflow-y: auto; padding-right: 2px; }
+  .tag-grid::-webkit-scrollbar { width: 3px; }
+  .tag-grid::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .tag { padding: 0.2rem 0.55rem; font-size: 0.7rem; font-family: 'Share Tech Mono', monospace; border-radius: 2px; cursor: pointer; border: 1px solid var(--border); color: var(--muted); transition: all 0.12s; user-select: none; }
+  .tag:hover { border-color: #444; color: var(--text); }
+  .tag.active { background: var(--glow); border-color: var(--accent); color: var(--accent); }
+
+  .chain-note { font-size: 0.65rem; font-family: 'Share Tech Mono', monospace; color: var(--chain); margin-top: 0.75rem; padding: 0.45rem 0.6rem; border: 1px solid rgba(0,212,255,0.2); border-radius: 2px; background: rgba(0,212,255,0.04); line-height: 1.5; display: none; }
+
+  .fetch-log { font-family: 'Share Tech Mono', monospace; font-size: 0.67rem; color: var(--muted); margin-top: 0.5rem; padding: 0.6rem; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 2px; max-height: 110px; overflow-y: auto; display: none; line-height: 1.7; }
+  .fetch-log.visible { display: block; }
+  .fetch-log::-webkit-scrollbar { width: 3px; }
+  .fetch-log::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .filter-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+  .ftab { padding: 0.3rem 0.65rem; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; font-family: 'Share Tech Mono', monospace; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); border-radius: 2px; transition: all 0.12s; }
+  .ftab:hover { color: var(--text); }
+  .ftab.active { background: var(--accent); color: #0a0a0f; border-color: var(--accent); font-weight: 700; }
+
+  .summary { font-family: 'Share Tech Mono', monospace; font-size: 0.67rem; color: var(--muted); margin-bottom: 0.75rem; }
+
+  .recipe-list { display: flex; flex-direction: column; gap: 0.4rem; max-height: 63vh; overflow-y: auto; padding-right: 3px; }
+  .recipe-list::-webkit-scrollbar { width: 3px; }
+  .recipe-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .card { background: #0d0d14; border: 1px solid var(--border); border-radius: 2px; padding: 0.7rem 0.9rem; position: relative; overflow: hidden; transition: border-color 0.15s; }
+  .card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; transform: scaleY(0); transition: transform 0.15s; }
+  .card.ready { border-color: rgba(200,255,0,0.25); }
+  .card.ready::before { transform: scaleY(1); background: var(--accent); }
+  .card.chain { border-color: rgba(0,212,255,0.2); }
+  .card.chain::before { transform: scaleY(1); background: var(--chain); }
+  .card.partial::before { transform: scaleY(1); background: var(--accent2); }
+  .card.partial { border-color: rgba(255,107,53,0.12); }
+
+  .rname { font-size: 0.92rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; margin-bottom: 0.3rem; }
+  .card.ready .rname { color: var(--accent); }
+  .card.chain .rname { color: var(--chain); }
+  .card.partial .rname { color: var(--accent2); }
+
+  .ings { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; }
+  .itag { font-size: 0.63rem; font-family: 'Share Tech Mono', monospace; padding: 0.12rem 0.4rem; border-radius: 2px; }
+  .itag.have { background: rgba(200,255,0,0.08); color: var(--accent); border: 1px solid rgba(200,255,0,0.25); }
+  .itag.craft { background: rgba(0,212,255,0.07); color: var(--chain); border: 1px solid rgba(0,212,255,0.22); }
+  .itag.need { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .plus { color: var(--muted); font-size: 0.65rem; font-family: 'Share Tech Mono', monospace; }
+
+  .chain-steps { font-size: 0.62rem; font-family: 'Share Tech Mono', monospace; color: var(--chain); margin-top: 0.3rem; opacity: 0.85; }
+
+  .rmeta { display: flex; align-items: center; justify-content: space-between; margin-top: 0.35rem; }
+  .rtype { font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; font-family: 'Share Tech Mono', monospace; color: var(--muted); }
+  .rbar { height: 2px; background: var(--border); border-radius: 2px; width: 60px; overflow: hidden; }
+  .rbar-fill { height: 100%; border-radius: 2px; }
+
+  .empty { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
+  .empty .big { font-size: 2.5rem; opacity: 0.2; margin-bottom: 0.75rem; }
+  .empty p { font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; line-height: 1.9; }
+
+  .wiki-note { font-family: 'Share Tech Mono', monospace; font-size: 0.6rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 0.6rem; margin-top: 0.75rem; line-height: 1.6; }
+  .wiki-note a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 700px) { .layout { grid-template-columns: 1fr; } header h1 { font-size: 2.2rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="game-title">// SULFUR //</div>
+    <h1>Recipe Finder</h1>
+    <p>live wiki data · crafting chains · toggle ingredients</p>
+  </header>
+
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <div class="panel-title">Your Ingredients</div>
+        <textarea id="ingInput" placeholder="One per line or comma-separated&#10;&#10;e.g.&#10;oats, rhubarb&#10;egg&#10;black pepper"></textarea>
+        <button class="btn" onclick="loadIngredients()">Set Ingredients</button>
+        <button class="btn btn-ghost" id="fetchBtn" onclick="startFetch()">Fetch Recipes from Wiki</button>
+        <div class="status" id="status"></div>
+        <div class="fetch-log" id="fetchLog"></div>
+        <div id="tagGrid" class="tag-grid"></div>
+        <div class="chain-note" id="chainNote">⛓ Cyan = craftable by cooking an intermediate item first</div>
+        <div class="wiki-note">Data from <a href="https://sulfur.wiki.gg/wiki/Recipes" target="_blank">sulfur.wiki.gg ↗</a></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="panel-title">Recipes</div>
+        <div class="filter-tabs">
+          <button class="ftab active" onclick="setFilter('all',this)">All</button>
+          <button class="ftab" onclick="setFilter('ready',this)">✓ Ready</button>
+          <button class="ftab" onclick="setFilter('chain',this)">⛓ Chain</button>
+          <button class="ftab" onclick="setFilter('partial',this)">~ Partial</button>
+        </div>
+        <div class="summary" id="summary">— fetch recipes to begin —</div>
+        <div class="recipe-list" id="recipeList">
+          <div class="empty"><div class="big">⚗</div><p>Enter your ingredients above,<br>then click "Fetch Recipes from Wiki".<br><br>The tool will fetch all recipe pages<br>and show what you can craft,<br>including multi-step chains.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "https://api.anthropic.com/v1/messages";
+let myIngredients = new Set();
+let allRecipes = [];
+let currentFilter = 'all';
+
+// ── Ingredients ────────────────────────────────────────────────────────────
+function loadIngredients() {
+  const raw = document.getElementById('ingInput').value;
+  const parts = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+  myIngredients = new Set(parts.map(s => s.toLowerCase()));
+  renderTags(parts);
+  setStatus(`${parts.length} ingredient(s) set.`, 'ok');
+  if (allRecipes.length > 0) renderResults();
+  document.getElementById('fetchBtn').disabled = parts.length === 0;
+}
+
+function renderTags(parts) {
+  const g = document.getElementById('tagGrid');
+  g.innerHTML = '';
+  parts.forEach(p => {
+    const t = document.createElement('div');
+    t.className = 'tag active';
+    t.textContent = p;
+    t.onclick = () => {
+      const k = p.toLowerCase();
+      myIngredients.has(k) ? myIngredients.delete(k) : myIngredients.add(k);
+      t.classList.toggle('active', myIngredients.has(k));
+      if (allRecipes.length > 0) renderResults();
+    };
+    g.appendChild(t);
+  });
+}
+
+// ── Fetch ──────────────────────────────────────────────────────────────────
+async function startFetch() {
+  const btn = document.getElementById('fetchBtn');
+  btn.disabled = true;
+  const log = document.getElementById('fetchLog');
+  log.innerHTML = '';
+  log.classList.add('visible');
+
+  function addLog(msg) {
+    log.innerHTML += msg + '<br>';
+    log.scrollTop = log.scrollHeight;
+  }
+
+  // All recipe slugs from the wiki's Recipes page
+  const slugs = [
+    "Admiral_White_Extra_Strong","Anti-Poison_Gum","Aspic","Banana_Bread","Banana_Sulfs",
+    "Bark_Bread","Beef_Jerky","Berry_Jam","Berry_Jam_(Unsweetened)","Berry_Milkshake",
+    "Biscuits_And_Gravy","Boba_Tea","Bottled_Water","Bread","Bread_Sandwich","Broth",
+    "Buddy_Sandwich","Butter","Butter_Sandwich","Buttermilk","Buttermilk_Pancakes",
+    "Cactus_Softdrink","Candy_Cane","Cereal","Cevapi","Cheese","Cheese_Sandwich",
+    "Cheese_Tops","Cheeseburger","Chocolate_Ball","Chocolate_Milkshake","Chocolate_Mudcake",
+    "Chocolate_Syrup","Cordon_Bleu","Cotton_Candy","Cotton_Swabs","Cuisses_De_Grenouille",
+    "Currywurst","Dimmie","Dopp_I_Grytan","Double_Cheeseburger","Dumpling","Egg_Toddy",
+    "Energy_Gum","Escargot","First_Aid_Kit","Fish_And_Chips","Fondue","French_Hotdog",
+    "French_Toast","Fried_Blood_Pudding","Fried_Mushroom","Frog_Leg","Full_English_Breakfast",
+    "Gonster","Graved_Salmon","Gravy","Green_Tea","Green_Tea_Gum","Grilled_Cactus",
+    "Haggis","Hard_Bread","Hardshell_Taco","Health_Potion","Herbal_Tea","Holy_Toast",
+    "Hot_Pot","Hot_Sauce","Hot_Snacks","Jansson%27s_Temptation","Jello","Julmust",
+    "Kidney_Pie","Kidney_Stone","Lackerol_Cactus","Leverpastej","Liver_P%C3%A2t%C3%A9_Sandwich",
+    "Lussekatt","Lutfisk","Mac%27n%27Cheese","Maki","Marshmallows","Mashed_Potatoes",
+    "Meat_Skewer","Meringue","Mochi","Mulled_Wine","Mushroom_Omelette","Mushroom_Skewer",
+    "Mushroom_Soup","Mystery_Meat","Nashville_Hot_Chicken","Nigiri","Nuggets","Nut_Mix",
+    "Nut_Spread","Omelette","Onigiri","Peanut_Butter","Peanutbutter_Jelly_Sandwich",
+    "Peanutbutter_Sandwich","Pickled_Herring_Platter","Pizza","Porridge","Poutine",
+    "Power_Bar","Puffed_Rice_Cakes","Pyttipanna","P%C3%B6lsa","P%C3%B8lse","Raclette",
+    "Ramen","Red_Wine","Rhubarb_Pie","Rhubarb_Porridge","Rhubarb_Sauce","Rice_Porridge",
+    "Risalamande","R%C3%B6dsopp_Paste","Sashimi","Sausage_Omelette","Sausage_On_Stick",
+    "Sausage_Soup","Soda","Spaghetti_Bolognese","Spanish_Omelette","Spicy_Sausage","Stew",
+    "Surstromming","Swedish_Pancakes","Sweet_Gum","Toast_Skagen","Tongue_On_Stick",
+    "Tori_Ramen","Tube_Caviar","Unagi","Vacuum_Cleaner","Extra_Lung","Springcoil_Boot"
+  ];
+
+  const BATCH = 18;
+  const batches = [];
+  for (let i = 0; i < slugs.length; i += BATCH) batches.push(slugs.slice(i, i + BATCH));
+
+  addLog(`Fetching ${slugs.length} recipes in ${batches.length} batches...`);
+  setStatus('', 'loading');
+
+  let fetched = [];
+
+  for (let b = 0; b < batches.length; b++) {
+    const batch = batches[b];
+    const preview = batch.slice(0,3).map(s => decodeURIComponent(s).replace(/_/g,' ')).join(', ');
+    addLog(`Batch ${b+1}/${batches.length}: ${preview}...`);
+    setStatus(`Fetching batch ${b+1}/${batches.length}…`, 'loading');
+
+    const urlList = batch.map(s => `https://sulfur.wiki.gg/wiki/${s}`).join('\n');
+
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 4000,
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+          system: `You extract recipe data from the SULFUR game wiki at sulfur.wiki.gg.
+For each URL, fetch the page and read the "Recipes" section.
+Each recipe shows ingredients joined with "+" leading to an output.
+A single item may have MULTIPLE recipe variants (different ingredient combinations that make the same thing).
+
+Return ONLY a raw JSON array — no markdown fences, no explanation:
+[
+  {
+    "name": "Exact Item Name",
+    "type": "consumable",
+    "variants": [
+      ["Ingredient One", "Ingredient Two"],
+      ["Alt Ingredient", "Ingredient Two"]
+    ]
+  }
+]
+
+Rules:
+- "type" is "consumable" or "equipment"
+- Each sub-array in "variants" is one complete set of ingredients for that recipe
+- Ingredient names must be spelled EXACTLY as on the wiki page
+- Include ALL variants listed on the page
+- If a page 404s or has no recipe section, omit it`,
+          messages: [{
+            role: 'user',
+            content: `Fetch each URL below and extract all recipe variants. Return ONLY the JSON array.\n\n${urlList}`
+          }]
+        })
+      });
+
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+
+      const text = data.content.filter(c => c.type === 'text').map(c => c.text).join('');
+      // Strip any markdown fences just in case
+      const clean = text.replace(/```json|```/g, '').trim();
+      const match = clean.match(/\[[\s\S]*\]/);
+      if (match) {
+        const parsed = JSON.parse(match[0]);
+        fetched = fetched.concat(parsed);
+        addLog(`  ✓ ${parsed.length} recipes`);
+      } else {
+        addLog(`  ⚠ no JSON found in batch ${b+1}`);
+      }
+    } catch(err) {
+      addLog(`  ✗ error: ${err.message}`);
+    }
+
+    if (b < batches.length - 1) await sleep(400);
+  }
+
+  if (fetched.length === 0) {
+    setStatus('No data returned. Check console.', 'error');
+    btn.disabled = false;
+    return;
+  }
+
+  // Deduplicate by name (keep last seen)
+  const seen = new Map();
+  fetched.forEach(r => seen.set(r.name.toLowerCase(), r));
+  allRecipes = [...seen.values()];
+
+  addLog(`\nDone! ${allRecipes.length} recipes loaded.`);
+  setStatus(`✓ ${allRecipes.length} recipes loaded.`, 'ok');
+  btn.disabled = false;
+  btn.textContent = 'Refresh from Wiki';
+  renderResults();
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ── Crafting chain resolution ──────────────────────────────────────────────
+function buildCraftableSet(haveSet) {
+  // BFS: expand what we can craft from what we have
+  const craftable = new Set(haveSet);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const r of allRecipes) {
+      const rLow = r.name.toLowerCase();
+      if (craftable.has(rLow)) continue;
+      const canMake = r.variants.some(v => v.every(i => craftable.has(i.toLowerCase())));
+      if (canMake) { craftable.add(rLow); changed = true; }
+    }
+  }
+  return craftable;
+}
+
+function scoreRecipe(recipe, haveSet, craftableSet) {
+  // Direct: all ingredients in hand right now
+  const directVariant = recipe.variants.find(v =>
+    v.every(i => haveSet.has(i.toLowerCase()))
+  );
+
+  // Chain: all ingredients craftable (may need intermediate steps)
+  const chainVariant = !directVariant && recipe.variants.find(v =>
+    v.every(i => craftableSet.has(i.toLowerCase()))
+  );
+
+  // Best partial: most ingredients we have
+  let bestVariant = recipe.variants[0];
+  let bestCount = 0;
+  recipe.variants.forEach(v => {
+    const c = v.filter(i => haveSet.has(i.toLowerCase())).length;
+    if (c > bestCount) { bestCount = c; bestVariant = v; }
+  });
+
+  const displayVariant = directVariant || chainVariant || bestVariant;
+  const total = displayVariant.length;
+  const haveCount = displayVariant.filter(i => haveSet.has(i.toLowerCase())).length;
+
+  // What intermediate items need to be crafted first?
+  const chainSteps = chainVariant
+    ? chainVariant.filter(i => !haveSet.has(i.toLowerCase()) && craftableSet.has(i.toLowerCase()))
+    : [];
+
+  return {
+    ...recipe,
+    directVariant,
+    chainVariant,
+    chainSteps,
+    displayVariant,
+    haveCount,
+    total,
+    pct: haveCount / total
+  };
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function renderResults() {
+  const list = document.getElementById('recipeList');
+  list.innerHTML = '';
+
+  if (myIngredients.size === 0) {
+    list.innerHTML = `<div class="empty"><div class="big">⊘</div><p>Set your ingredients first.</p></div>`;
+    return;
+  }
+
+  const haveSet = new Set(myIngredients);
+  const craftableSet = buildCraftableSet(haveSet);
+
+  const scored = allRecipes.map(r => scoreRecipe(r, haveSet, craftableSet));
+
+  scored.sort((a, b) => {
+    const rank = r => r.directVariant ? 3 : r.chainVariant ? 2 : r.pct > 0 ? 1 : 0;
+    const diff = rank(b) - rank(a);
+    if (diff !== 0) return diff;
+    return b.pct - a.pct;
+  });
+
+  const nReady  = scored.filter(r => r.directVariant).length;
+  const nChain  = scored.filter(r => !r.directVariant && r.chainVariant).length;
+  const nPartial = scored.filter(r => !r.directVariant && !r.chainVariant && r.pct > 0).length;
+
+  document.getElementById('summary').textContent =
+    `${nReady} ready now · ${nChain} via chain · ${nPartial} partial`;
+  document.getElementById('chainNote').style.display = nChain > 0 ? 'block' : 'none';
+
+  let toShow = scored;
+  if (currentFilter === 'ready')   toShow = scored.filter(r => r.directVariant);
+  if (currentFilter === 'chain')   toShow = scored.filter(r => !r.directVariant && r.chainVariant);
+  if (currentFilter === 'partial') toShow = scored.filter(r => !r.directVariant && !r.chainVariant && r.pct > 0);
+
+  if (toShow.length === 0) {
+    list.innerHTML = `<div class="empty"><div class="big">⊘</div><p>Nothing matches this filter.</p></div>`;
+    return;
+  }
+
+  toShow.forEach(r => {
+    const card = document.createElement('div');
+    const cls = r.directVariant ? 'ready' : r.chainVariant ? 'chain' : r.pct > 0 ? 'partial' : '';
+    card.className = `card ${cls}`;
+
+    const ingHtml = r.displayVariant.map((ing, idx) => {
+      const lo = ing.toLowerCase();
+      const have = haveSet.has(lo);
+      const canCraft = !have && craftableSet.has(lo);
+      const cls2 = have ? 'have' : canCraft ? 'craft' : 'need';
+      const plus = idx > 0 ? '<span class="plus">+</span>' : '';
+      return `${plus}<span class="itag ${cls2}">${ing}</span>`;
+    }).join('');
+
+    const chainHtml = r.chainSteps.length > 0
+      ? `<div class="chain-steps">⛓ craft first: ${r.chainSteps.join(' → ')}</div>` : '';
+
+    const barColor = r.directVariant ? 'var(--accent)' : r.chainVariant ? 'var(--chain)' : r.pct > 0.5 ? '#ffaa00' : 'var(--accent2)';
+    const barW = r.directVariant || r.chainVariant ? 100 : Math.round(r.pct * 100);
+    const varNote = r.variants.length > 1 ? ` · ${r.variants.length} variants` : '';
+
+    card.innerHTML = `
+      <div class="rname">${r.name}</div>
+      <div class="ings">${ingHtml}</div>
+      ${chainHtml}
+      <div class="rmeta">
+        <span class="rtype">${r.type}${varNote} · ${r.haveCount}/${r.total}</span>
+        <div class="rbar"><div class="rbar-fill" style="width:${barW}%;background:${barColor}"></div></div>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  if (allRecipes.length > 0) renderResults();
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = `status ${type || ''}`;
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('ingInput').value =
+    `gonster, stew, mashed potatoes, butter sandwich, human skin, maki, vacuum cleaner, oats, cacao, kidney stone, rhubarb, egg, cereal, black pepper, brain`;
+  document.getElementById('fetchBtn').disabled = true;
+  loadIngredients();
+});
+</script>
+</body>
+</html>

@@ -14,3 +14,35 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Returns all recipes scraped from the Sulfur wiki
+ * @summary Get all recipes
+ */
+export const GetRecipesResponse = zod.object({
+  recipes: zod.array(
+    zod.object({
+      name: zod.string(),
+      type: zod.string(),
+      variants: zod.array(zod.array(zod.string())),
+    }),
+  ),
+  count: zod.number(),
+  cachedAt: zod.string(),
+});
+
+/**
+ * Clears cache and re-scrapes the Sulfur wiki
+ * @summary Refresh recipe cache
+ */
+export const RefreshRecipesResponse = zod.object({
+  recipes: zod.array(
+    zod.object({
+      name: zod.string(),
+      type: zod.string(),
+      variants: zod.array(zod.array(zod.string())),
+    }),
+  ),
+  count: zod.number(),
+  cachedAt: zod.string(),
+});

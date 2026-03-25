@@ -5,15 +5,22 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  ErrorResponse,
+  HealthStatus,
+  RecipesResponse,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
 import type { ErrorType } from "../custom-fetch";
@@ -99,3 +106,161 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Returns all recipes scraped from the Sulfur wiki
+ * @summary Get all recipes
+ */
+export const getGetRecipesUrl = () => {
+  return `/api/recipes`;
+};
+
+export const getRecipes = async (
+  options?: RequestInit,
+): Promise<RecipesResponse> => {
+  return customFetch<RecipesResponse>(getGetRecipesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRecipesQueryKey = () => {
+  return [`/api/recipes`] as const;
+};
+
+export const getGetRecipesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRecipes>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRecipes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRecipesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRecipes>>> = ({
+    signal,
+  }) => getRecipes({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRecipes>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRecipesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRecipes>>
+>;
+export type GetRecipesQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get all recipes
+ */
+
+export function useGetRecipes<
+  TData = Awaited<ReturnType<typeof getRecipes>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRecipes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRecipesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Clears cache and re-scrapes the Sulfur wiki
+ * @summary Refresh recipe cache
+ */
+export const getRefreshRecipesUrl = () => {
+  return `/api/recipes/refresh`;
+};
+
+export const refreshRecipes = async (
+  options?: RequestInit,
+): Promise<RecipesResponse> => {
+  return customFetch<RecipesResponse>(getRefreshRecipesUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRefreshRecipesMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshRecipes>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof refreshRecipes>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["refreshRecipes"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof refreshRecipes>>,
+    void
+  > = () => {
+    return refreshRecipes(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RefreshRecipesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof refreshRecipes>>
+>;
+
+export type RefreshRecipesMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Refresh recipe cache
+ */
+export const useRefreshRecipes = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshRecipes>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof refreshRecipes>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getRefreshRecipesMutationOptions(options));
+};

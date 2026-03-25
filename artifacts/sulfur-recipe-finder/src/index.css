@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Share+Tech+Mono&display=swap');
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: 'Share Tech Mono', monospace;
+  --font-display: 'Barlow Condensed', sans-serif;
+
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-border: hsl(var(--border));
+  
+  --color-ready: hsl(var(--ready));
+  --color-chain: hsl(var(--chain));
+  --color-partial: hsl(var(--partial));
+}
+
+:root {
+  --background: 0 0% 4%;
+  --foreground: 0 0% 90%;
+  --primary: 111 100% 54%;
+  --primary-foreground: 0 0% 0%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 60%;
+  --border: 0 0% 20%;
+  
+  --ready: 111 100% 54%;
+  --chain: 180 100% 50%;
+  --partial: 39 100% 50%;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground antialiased font-sans;
+    background-color: #0a0a0a;
+    background-image: 
+      radial-gradient(circle at 50% 50%, rgba(20, 20, 20, 1) 0%, rgba(0, 0, 0, 1) 100%);
+    min-height: 100vh;
+  }
+
+  /* CRT Scanline Effect */
+  body::after {
+    content: " ";
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(18, 16, 16, 0) 50%,
+      rgba(0, 0, 0, 0.25) 50%
+    );
+    background-size: 100% 4px;
+    z-index: 9999;
+    pointer-events: none;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    @apply font-bold tracking-wider;
+  }
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.5);
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary));
+  }
+
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
+  .animate-shimmer {
+    animation: shimmer 1s infinite linear;
+  }
+}

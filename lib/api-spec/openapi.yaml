@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: recipes
+    description: Recipe operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /recipes:
+    get:
+      operationId: getRecipes
+      tags: [recipes]
+      summary: Get all recipes
+      description: Returns all recipes scraped from the Sulfur wiki
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipesResponse"
+        "500":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /recipes/refresh:
+    post:
+      operationId: refreshRecipes
+      tags: [recipes]
+      summary: Refresh recipe cache
+      description: Clears cache and re-scrapes the Sulfur wiki
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipesResponse"
+        "500":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +73,42 @@ components:
           type: string
       required:
         - status
-
+    Recipe:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        variants:
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+      required:
+        - name
+        - type
+        - variants
+    RecipesResponse:
+      type: object
+      properties:
+        recipes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Recipe"
+        count:
+          type: integer
+        cachedAt:
+          type: string
+      required:
+        - recipes
+        - count
+        - cachedAt
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

@@ -5,22 +5,10 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-export interface HealthStatus {
-  status: string;
-}
-
-export interface Recipe {
-  name: string;
-  type: string;
-  variants: string[][];
-}
+import type { Recipe } from "./recipe";
 
 export interface RecipesResponse {
   recipes: Recipe[];
   count: number;
   cachedAt: string;
-}
-
-export interface ErrorResponse {
-  error: string;
 }

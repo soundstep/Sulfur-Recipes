@@ -1,0 +1,9 @@
+packages:
+  "framer-motion": "For sleek list transitions and animations"
+  "clsx": "For conditional class names"
+  "tailwind-merge": "For merging Tailwind classes safely"
+  "date-fns": "For formatting cache timestamps"
+images: []
+notes:
+  - "The backend provides /api/recipes to fetch scraped data and /api/recipes/refresh to force a new scrape."
+  - "Using orval generated hooks from @workspace/api-client-react."
