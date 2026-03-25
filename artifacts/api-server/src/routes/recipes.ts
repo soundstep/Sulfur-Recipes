@@ -36,6 +36,24 @@ const RECIPE_SLUGS = [
   "Tori_Ramen","Tube_Caviar","Unagi","Vacuum_Cleaner","Extra_Lung","Springcoil_Boot"
 ];
 
+const HARDCODED_CATEGORIES: Record<string, string[]> = {
+  "flesh":     ["craw flesh", "dog flesh", "goblin flesh", "hellshrew flesh", "human flesh", "shav'wa flesh"],
+  "skins":     ["craw skin", "dog skin", "goblin skin", "hellshrew skin", "human skin", "shav'wa skin"],
+  "milk":      ["buttermilk", "low fat milk", "skimmed milk", "whole milk"],
+  "mushrooms": ["false sulfcap", "karl-oskar", "mycota squamata", "rödsopp", "swing-ding", "velvet bell"],
+  "nuts":      ["hazelnut", "peanut", "pine nuts", "walnut"],
+  "water":     ["bottled water", "mineral water"],
+};
+
+function cleanLabel(label: string): string {
+  return label
+    .replace(/'{2,3}([^']*?)'{2,3}/g, "$1")
+    .replace(/&times;/gi, "×")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function parseRecipeRows(wikitext: string): { variants: string[][]; categoryMap: Record<string, string> } {
   const variants: string[][] = [];
   const categoryMap: Record<string, string> = {};
@@ -60,7 +78,8 @@ function parseRecipeRows(wikitext: string): { variants: string[][]; categoryMap:
       const qtySuffix = qty > 1 ? ` x${qty}` : "";
 
       if (labelMatch) {
-        const label = labelMatch[1].trim();
+        const rawLabel = labelMatch[1].trim();
+        const label = cleanLabel(rawLabel);
         if (label && !label.startsWith(":") && label !== "(blank)") {
           ingredients.push(label + qtySuffix);
           if (keyMatch) {
@@ -94,19 +113,9 @@ function detectType(wikitext: string): string {
   return "consumable";
 }
 
-async function fetchCategoryMembers(catName: string): Promise<string[]> {
-  const url = `https://sulfur.wiki.gg/api.php?action=query&list=categorymembers&cmtitle=Category:${encodeURIComponent(catName)}&cmlimit=100&format=json`;
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "SulfurRecipeFinder/1.0" },
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!res.ok) return [];
-    const data = await res.json() as { query?: { categorymembers?: Array<{ title: string }> } };
-    return (data.query?.categorymembers ?? []).map(m => m.title.toLowerCase());
-  } catch {
-    return [];
-  }
+function resolveCategoryMembers(catName: string): string[] {
+  const key = catName.toLowerCase();
+  return HARDCODED_CATEGORIES[key] ?? [];
 }
 
 async function fetchRecipeFromApi(slug: string): Promise<{ recipe: Recipe | null; categoryMap: Record<string, string> }> {
@@ -162,10 +171,9 @@ async function getRecipesData(): Promise<RecipeCache> {
   }
 
   const categoryMembers: Record<string, string[]> = {};
-  const uniqueCategories = Object.entries(globalCategoryMap);
-  await Promise.all(uniqueCategories.map(async ([label, catName]) => {
-    categoryMembers[label] = await fetchCategoryMembers(catName);
-  }));
+  for (const [label, catName] of Object.entries(globalCategoryMap)) {
+    categoryMembers[label] = resolveCategoryMembers(catName);
+  }
 
   cachedData = { recipes: results, categoryMembers };
   cacheTimestamp = Date.now();
