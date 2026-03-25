@@ -14,15 +14,28 @@ function baseName(ing: string) {
   return ing.toLowerCase().replace(/\s*x\d+\s*$/i, "").trim();
 }
 
-function buildCraftableSet(haveSet: Set<string>, allRecipes: Recipe[]) {
-  const craftable = new Set(haveSet);
+function requiredQty(ing: string): number {
+  const m = ing.match(/x(\d+)\s*$/i);
+  return m ? parseInt(m[1], 10) : 1;
+}
+
+function hasIngredient(ing: string, haveMap: Map<string, number>): boolean {
+  return (haveMap.get(baseName(ing)) ?? 0) >= requiredQty(ing);
+}
+
+function buildCraftableSet(haveMap: Map<string, number>, allRecipes: Recipe[]) {
+  const craftable = new Set<string>(haveMap.keys());
   let changed = true;
   while (changed) {
     changed = false;
     for (const r of allRecipes) {
       const rLow = r.name.toLowerCase();
       if (craftable.has(rLow)) continue;
-      const canMake = r.variants.some(v => v.every(i => craftable.has(baseName(i))));
+      const canMake = r.variants.some(v => v.every(i => {
+        const base = baseName(i);
+        if (haveMap.has(base)) return hasIngredient(i, haveMap);
+        return craftable.has(base);
+      }));
       if (canMake) {
         craftable.add(rLow);
         changed = true;
@@ -32,22 +45,28 @@ function buildCraftableSet(haveSet: Set<string>, allRecipes: Recipe[]) {
   return craftable;
 }
 
-function scoreRecipe(recipe: Recipe, haveSet: Set<string>, craftableSet: Set<string>): ScoredRecipe {
-  const directVariant = recipe.variants.find(v => v.every(i => haveSet.has(baseName(i))));
-  const chainVariant = !directVariant && recipe.variants.find(v => v.every(i => craftableSet.has(baseName(i))));
+function scoreRecipe(recipe: Recipe, haveMap: Map<string, number>, craftableSet: Set<string>): ScoredRecipe {
+  const directVariant = recipe.variants.find(v => v.every(i => hasIngredient(i, haveMap)));
+  const chainVariant = !directVariant && recipe.variants.find(v => v.every(i => {
+    const base = baseName(i);
+    if (haveMap.has(base)) return hasIngredient(i, haveMap);
+    return craftableSet.has(base);
+  }));
   
   let bestVariant = recipe.variants[0] || [];
   let bestCount = -1;
   recipe.variants.forEach(v => {
-    const c = v.filter(i => haveSet.has(baseName(i))).length;
+    const c = v.filter(i => hasIngredient(i, haveMap)).length;
     if (c > bestCount) { bestCount = c; bestVariant = v; }
   });
 
   const displayVariant = directVariant || chainVariant || bestVariant;
   const total = displayVariant.length;
-  const haveCount = displayVariant.filter(i => haveSet.has(baseName(i))).length;
+  const haveCount = displayVariant.filter(i => hasIngredient(i, haveMap)).length;
   
-  const chainSteps = chainVariant ? chainVariant.filter(i => !haveSet.has(baseName(i)) && craftableSet.has(baseName(i))) : [];
+  const chainSteps = chainVariant
+    ? chainVariant.filter(i => !hasIngredient(i, haveMap) && craftableSet.has(baseName(i)))
+    : [];
   const pct = total === 0 ? 0 : haveCount / total;
 
   return {
@@ -59,14 +78,14 @@ function scoreRecipe(recipe: Recipe, haveSet: Set<string>, craftableSet: Set<str
     haveCount,
     total,
     pct,
-    haveSet,
+    haveMap,
     craftableSet
   };
 }
 
 export default function Home() {
   const [inputText, setInputText] = useState(DEFAULT_INGS);
-  const [activeIngs, setActiveIngs] = useState<Set<string>>(new Set());
+  const [activeIngs, setActiveIngs] = useState<Map<string, number>>(new Map());
   const [filter, setFilter] = useState<'all' | 'ready' | 'chain' | 'partial'>('all');
   const [logs, setLogs] = useState<string[]>(["[SYS] OS Boot sequence complete...", "[SYS] Waiting for database sync..."]);
 
@@ -103,19 +122,27 @@ export default function Home() {
   }
 
   function handleSetIngredients(text: string) {
-    const parsed = text.split(/[\n,]+/)
-      .map(s => s.trim().toLowerCase().replace(/\s*x\d+\s*$/i, "").trim())
-      .filter(Boolean);
-    setActiveIngs(new Set(parsed));
-    addLog(`INVENTORY UPDATED: ${parsed.length} UNIQUE ITEMS.`);
+    const map = new Map<string, number>();
+    text.split(/[\n,]+/).forEach(s => {
+      const trimmed = s.trim().toLowerCase();
+      if (!trimmed) return;
+      const qtyMatch = trimmed.match(/\s*x(\d+)\s*$/i);
+      const qty = qtyMatch ? parseInt(qtyMatch[1], 10) : 1;
+      const name = trimmed.replace(/\s*x\d+\s*$/i, "").trim();
+      if (name) map.set(name, Math.max(qty, map.get(name) ?? 0));
+    });
+    setActiveIngs(map);
+    addLog(`INVENTORY UPDATED: ${map.size} UNIQUE ITEMS.`);
   }
 
-  function toggleIng(ing: string) {
-    const next = new Set(activeIngs);
-    if (next.has(ing)) next.delete(ing);
-    else next.add(ing);
+  function toggleIng(name: string) {
+    const next = new Map(activeIngs);
+    if (next.has(name)) next.delete(name);
+    else next.set(name, 1);
     setActiveIngs(next);
-    setInputText(Array.from(next).join(", "));
+    setInputText(
+      Array.from(next.entries()).map(([n, q]) => q > 1 ? `${n} x${q}` : n).join(", ")
+    );
   }
 
   const scoredRecipes = useMemo(() => {
@@ -168,12 +195,12 @@ export default function Home() {
           <div className="lg:col-span-4 flex flex-col gap-6">
             
             <CyberPanel title="INVENTORY LINK">
-              <p className="text-xs text-muted-foreground mb-2 uppercase">Input raw materials (comma separated):</p>
+              <p className="text-xs text-muted-foreground mb-2 uppercase">Input raw materials (comma or newline separated):</p>
               <textarea 
                 value={inputText}
                 onChange={e => setInputText(e.target.value)}
                 className="w-full h-32 bg-black border-2 border-border text-foreground p-3 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all custom-scrollbar resize-none selection:bg-primary selection:text-black"
-                placeholder="Enter ingredients..."
+                placeholder={"e.g. oats x2, egg, rhubarb x3\nor one per line:\noats x2\negg\nrhubarb x3"}
               />
               <CyberButton onClick={() => handleSetIngredients(inputText)} className="w-full mt-3">
                 Sync Inventory
@@ -183,14 +210,14 @@ export default function Home() {
                 <h3 className="text-xs text-muted-foreground uppercase border-b border-border pb-1 mb-3">Active Items ({activeIngs.size})</h3>
                 <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                   {activeIngs.size === 0 && <span className="text-muted-foreground text-xs italic">No items found.</span>}
-                  {Array.from(activeIngs).map(ing => (
+                  {Array.from(activeIngs.entries()).map(([ing, qty]) => (
                     <button 
                       key={ing}
                       onClick={() => toggleIng(ing)}
                       className="text-[10px] sm:text-xs px-2 py-1 border border-primary/50 text-primary bg-primary/5 hover:bg-primary hover:text-black transition-colors uppercase font-semibold tracking-wide"
                       title="Click to remove"
                     >
-                      {ing} <span className="opacity-50 ml-1 hover:opacity-100">&times;</span>
+                      {qty > 1 ? `${ing} x${qty}` : ing} <span className="opacity-50 ml-1 hover:opacity-100">&times;</span>
                     </button>
                   ))}
                 </div>

@@ -5,6 +5,15 @@ function baseName(ing: string) {
   return ing.toLowerCase().replace(/\s*x\d+\s*$/i, "").trim();
 }
 
+function requiredQty(ing: string): number {
+  const m = ing.match(/x(\d+)\s*$/i);
+  return m ? parseInt(m[1], 10) : 1;
+}
+
+function hasIngredient(ing: string, haveMap: Map<string, number>): boolean {
+  return (haveMap.get(baseName(ing)) ?? 0) >= requiredQty(ing);
+}
+
 export interface Recipe {
   name: string;
   type: string;
@@ -19,7 +28,7 @@ export type ScoredRecipe = Recipe & {
   haveCount: number;
   total: number;
   pct: number;
-  haveSet: Set<string>;
+  haveMap: Map<string, number>;
   craftableSet: Set<string>;
 };
 
@@ -67,9 +76,8 @@ export function RecipeCard({ recipe }: { recipe: ScoredRecipe }) {
 
       <div className="flex flex-wrap gap-2 mb-4 mt-4">
         {recipe.displayVariant.map((ing, idx) => {
-          const base = baseName(ing);
-          const have = recipe.haveSet.has(base);
-          const canCraft = !have && recipe.craftableSet.has(base);
+          const have = hasIngredient(ing, recipe.haveMap);
+          const canCraft = !have && recipe.craftableSet.has(baseName(ing));
           
           return (
             <div key={idx} className="flex items-center">
