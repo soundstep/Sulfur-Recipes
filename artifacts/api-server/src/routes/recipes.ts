@@ -50,19 +50,23 @@ function parseRecipeRows(wikitext: string): string[][] {
     for (let i = 1; i <= 6; i++) {
       const keyRegex = new RegExp(`\\|\\s*i${i}\\s*=([^|\\}\\n]+)`);
       const labelRegex = new RegExp(`\\|\\s*i${i}Label\\s*=([^|\\}\\n]+)`);
+      const qtyRegex = new RegExp(`\\|\\s*i${i}Qty\\s*=([^|\\}\\n]+)`);
 
       const labelMatch = labelRegex.exec(block);
       const keyMatch = keyRegex.exec(block);
+      const qtyMatch = qtyRegex.exec(block);
+      const qty = qtyMatch ? parseInt(qtyMatch[1].trim(), 10) : 1;
+      const qtySuffix = qty > 1 ? ` x${qty}` : "";
 
       if (labelMatch) {
         const label = labelMatch[1].trim();
         if (label && !label.startsWith(":") && label !== "(blank)") {
-          ingredients.push(label);
+          ingredients.push(label + qtySuffix);
         }
       } else if (keyMatch) {
         const ing = keyMatch[1].trim();
         if (ing && !ing.startsWith(":Category:") && ing !== "(blank)") {
-          ingredients.push(ing);
+          ingredients.push(ing + qtySuffix);
         }
       }
     }

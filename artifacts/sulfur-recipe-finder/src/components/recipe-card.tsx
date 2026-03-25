@@ -1,6 +1,10 @@
 import { Zap, Check, AlertTriangle } from "lucide-react";
 import clsx from "clsx";
 
+function baseName(ing: string) {
+  return ing.toLowerCase().replace(/\s*x\d+\s*$/i, "").trim();
+}
+
 export interface Recipe {
   name: string;
   type: string;
@@ -63,9 +67,9 @@ export function RecipeCard({ recipe }: { recipe: ScoredRecipe }) {
 
       <div className="flex flex-wrap gap-2 mb-4 mt-4">
         {recipe.displayVariant.map((ing, idx) => {
-          const lo = ing.toLowerCase();
-          const have = recipe.haveSet.has(lo);
-          const canCraft = !have && recipe.craftableSet.has(lo);
+          const base = baseName(ing);
+          const have = recipe.haveSet.has(base);
+          const canCraft = !have && recipe.craftableSet.has(base);
           
           return (
             <div key={idx} className="flex items-center">

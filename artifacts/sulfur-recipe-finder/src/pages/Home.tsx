@@ -10,6 +10,10 @@ import { format } from "date-fns";
 
 const DEFAULT_INGS = "gonster, stew, mashed potatoes, butter sandwich, human skin, maki, vacuum cleaner, oats, cacao, kidney stone, rhubarb, egg, cereal, black pepper, brain";
 
+function baseName(ing: string) {
+  return ing.toLowerCase().replace(/\s*x\d+\s*$/i, "").trim();
+}
+
 function buildCraftableSet(haveSet: Set<string>, allRecipes: Recipe[]) {
   const craftable = new Set(haveSet);
   let changed = true;
@@ -18,7 +22,7 @@ function buildCraftableSet(haveSet: Set<string>, allRecipes: Recipe[]) {
     for (const r of allRecipes) {
       const rLow = r.name.toLowerCase();
       if (craftable.has(rLow)) continue;
-      const canMake = r.variants.some(v => v.every(i => craftable.has(i.toLowerCase())));
+      const canMake = r.variants.some(v => v.every(i => craftable.has(baseName(i))));
       if (canMake) {
         craftable.add(rLow);
         changed = true;
@@ -29,21 +33,21 @@ function buildCraftableSet(haveSet: Set<string>, allRecipes: Recipe[]) {
 }
 
 function scoreRecipe(recipe: Recipe, haveSet: Set<string>, craftableSet: Set<string>): ScoredRecipe {
-  const directVariant = recipe.variants.find(v => v.every(i => haveSet.has(i.toLowerCase())));
-  const chainVariant = !directVariant && recipe.variants.find(v => v.every(i => craftableSet.has(i.toLowerCase())));
+  const directVariant = recipe.variants.find(v => v.every(i => haveSet.has(baseName(i))));
+  const chainVariant = !directVariant && recipe.variants.find(v => v.every(i => craftableSet.has(baseName(i))));
   
   let bestVariant = recipe.variants[0] || [];
   let bestCount = -1;
   recipe.variants.forEach(v => {
-    const c = v.filter(i => haveSet.has(i.toLowerCase())).length;
+    const c = v.filter(i => haveSet.has(baseName(i))).length;
     if (c > bestCount) { bestCount = c; bestVariant = v; }
   });
 
   const displayVariant = directVariant || chainVariant || bestVariant;
   const total = displayVariant.length;
-  const haveCount = displayVariant.filter(i => haveSet.has(i.toLowerCase())).length;
+  const haveCount = displayVariant.filter(i => haveSet.has(baseName(i))).length;
   
-  const chainSteps = chainVariant ? chainVariant.filter(i => !haveSet.has(i.toLowerCase()) && craftableSet.has(i.toLowerCase())) : [];
+  const chainSteps = chainVariant ? chainVariant.filter(i => !haveSet.has(baseName(i)) && craftableSet.has(baseName(i))) : [];
   const pct = total === 0 ? 0 : haveCount / total;
 
   return {
