@@ -14,6 +14,11 @@ function hasIngredient(ing: string, haveMap: Map<string, number>): boolean {
   return (haveMap.get(baseName(ing)) ?? 0) >= requiredQty(ing);
 }
 
+function wikiUrl(name: string) {
+  const slug = name.trim().replace(/\s+/g, "_");
+  return `https://sulfur.wiki.gg/wiki/${slug.charAt(0).toUpperCase() + slug.slice(1)}`;
+}
+
 export interface Recipe {
   name: string;
   type: string;
@@ -53,7 +58,14 @@ export function RecipeCard({ recipe }: { recipe: ScoredRecipe }) {
       <div className="flex justify-between items-start mb-3">
         <div>
           <h3 className={clsx("font-display text-2xl font-bold uppercase tracking-wider", colorClass)}>
-            {recipe.name}
+            <a
+              href={wikiUrl(recipe.name)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline underline-offset-4 decoration-dotted"
+            >
+              {recipe.name}
+            </a>
           </h3>
           <div className="text-xs text-muted-foreground uppercase font-sans flex flex-wrap gap-x-4 gap-y-1 mt-1">
             <span className="flex items-center gap-1">
@@ -82,14 +94,19 @@ export function RecipeCard({ recipe }: { recipe: ScoredRecipe }) {
           return (
             <div key={idx} className="flex items-center">
               {idx > 0 && <span className="text-border mx-1">+</span>}
-              <span className={clsx(
-                "text-xs px-2 py-1 border uppercase font-sans font-semibold tracking-wide transition-colors",
-                have ? 'border-ready/50 text-ready bg-ready/10' :
-                canCraft ? 'border-chain/50 text-chain bg-chain/10' :
-                'border-border/60 text-muted-foreground bg-muted/10'
-              )}>
+              <a
+                href={wikiUrl(baseName(ing))}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={clsx(
+                  "text-xs px-2 py-1 border uppercase font-sans font-semibold tracking-wide transition-colors hover:brightness-125",
+                  have ? 'border-ready/50 text-ready bg-ready/10' :
+                  canCraft ? 'border-chain/50 text-chain bg-chain/10' :
+                  'border-border/60 text-muted-foreground bg-muted/10'
+                )}
+              >
                 {ing}
-              </span>
+              </a>
             </div>
           );
         })}
