@@ -99,7 +99,9 @@ export default function Home() {
   }
 
   function handleSetIngredients(text: string) {
-    const parsed = text.split(/[\n,]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+    const parsed = text.split(/[\n,]+/)
+      .map(s => s.trim().toLowerCase().replace(/\s*x\d+\s*$/i, "").trim())
+      .filter(Boolean);
     setActiveIngs(new Set(parsed));
     addLog(`INVENTORY UPDATED: ${parsed.length} UNIQUE ITEMS.`);
   }
