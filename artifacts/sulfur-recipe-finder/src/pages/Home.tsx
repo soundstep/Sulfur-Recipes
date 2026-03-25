@@ -8,10 +8,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
 import { format } from "date-fns";
 
-const DEFAULT_INGS = "gonster, stew, mashed potatoes, butter sandwich, human skin, maki, vacuum cleaner, oats, cacao, kidney stone, rhubarb, egg, cereal, black pepper, brain";
+const DEFAULT_INGS = "";
+const STORAGE_KEY = "sulfur-inventory";
+
+function normalizeText(s: string): string {
+  return s
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[øØ]/g, "o").replace(/[åÅ]/g, "a").replace(/[æÆ]/g, "ae")
+    .replace(/[œŒ]/g, "oe").replace(/[ðÐ]/g, "d").replace(/[þÞ]/g, "th")
+    .replace(/[ß]/g, "ss");
+}
 
 function baseName(ing: string) {
-  return ing.toLowerCase().replace(/\s*x\d+\s*$/i, "").trim();
+  return normalizeText(ing.toLowerCase().replace(/\s*x\d+\s*$/i, "").trim());
 }
 
 function requiredQty(ing: string): number {
@@ -102,7 +111,7 @@ function scoreRecipe(
 }
 
 export default function Home() {
-  const [inputText, setInputText] = useState(DEFAULT_INGS);
+  const [inputText, setInputText] = useState(() => localStorage.getItem(STORAGE_KEY) ?? DEFAULT_INGS);
   const [activeIngs, setActiveIngs] = useState<Map<string, number>>(new Map());
   const [filter, setFilter] = useState<'all' | 'ready' | 'chain' | 'partial'>('all');
   const [logs, setLogs] = useState<string[]>(["[SYS] OS Boot sequence complete...", "[SYS] Waiting for database sync..."]);
@@ -111,11 +120,22 @@ export default function Home() {
   const { mutate: refreshRecipes, isPending: isRefreshing } = useRefreshRecipesData();
 
   const recipes = data?.recipes || [];
-  const catMems = data?.categoryMembers ?? {};
+  const catMems = useMemo(() => {
+    const raw = data?.categoryMembers ?? {};
+    const result: Record<string, string[]> = {};
+    for (const [label, members] of Object.entries(raw)) {
+      result[normalizeText(label)] = (members as string[]).map(m => normalizeText(m));
+    }
+    return result;
+  }, [data?.categoryMembers]);
   
   useEffect(() => {
-    handleSetIngredients(DEFAULT_INGS);
+    handleSetIngredients(inputText);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, inputText);
+  }, [inputText]);
 
   useEffect(() => {
     if (isLoading) {
@@ -147,7 +167,7 @@ export default function Home() {
       if (!trimmed) return;
       const qtyMatch = trimmed.match(/\s*x(\d+)\s*$/i);
       const qty = qtyMatch ? parseInt(qtyMatch[1], 10) : 1;
-      const name = trimmed.replace(/\s*x\d+\s*$/i, "").trim();
+      const name = normalizeText(trimmed.replace(/\s*x\d+\s*$/i, "").trim());
       if (name) map.set(name, Math.max(qty, map.get(name) ?? 0));
     });
     setActiveIngs(map);

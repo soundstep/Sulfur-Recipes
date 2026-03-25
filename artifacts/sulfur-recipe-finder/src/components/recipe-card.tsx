@@ -1,8 +1,16 @@
 import { Zap, Check, AlertTriangle, Flame } from "lucide-react";
 import clsx from "clsx";
 
+function normalizeText(s: string): string {
+  return s
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[øØ]/g, "o").replace(/[åÅ]/g, "a").replace(/[æÆ]/g, "ae")
+    .replace(/[œŒ]/g, "oe").replace(/[ðÐ]/g, "d").replace(/[þÞ]/g, "th")
+    .replace(/[ß]/g, "ss");
+}
+
 function baseName(ing: string) {
-  return ing.toLowerCase().replace(/\s*x\d+\s*$/i, "").trim();
+  return normalizeText(ing.toLowerCase().replace(/\s*x\d+\s*$/i, "").trim());
 }
 
 function requiredQty(ing: string): number {
