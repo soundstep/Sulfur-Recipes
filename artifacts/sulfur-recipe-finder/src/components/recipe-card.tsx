@@ -1,4 +1,4 @@
-import { Zap, Check, AlertTriangle } from "lucide-react";
+import { Zap, Check, AlertTriangle, Flame } from "lucide-react";
 import clsx from "clsx";
 
 function baseName(ing: string) {
@@ -24,6 +24,24 @@ function wikiUrl(name: string) {
   return `https://sulfur.wiki.gg/wiki/${slug.charAt(0).toUpperCase() + slug.slice(1)}`;
 }
 
+function ingWikiUrl(ing: string) {
+  const nameNoQty = ing.replace(/\s*x\d+\s*$/i, "").trim();
+  return wikiUrl(nameNoQty);
+}
+
+function maxCooks(variant: string[], haveMap: Map<string, number>, catMems: Record<string, string[]>): number {
+  let min = Infinity;
+  for (const ing of variant) {
+    const base = baseName(ing);
+    const needed = requiredQty(ing);
+    let have = haveMap.get(base) ?? 0;
+    const members = catMems[base];
+    if (members) have = Math.max(have, ...members.map(m => haveMap.get(m) ?? 0));
+    min = Math.min(min, Math.floor(have / needed));
+  }
+  return min === Infinity ? 0 : min;
+}
+
 export interface Recipe {
   name: string;
   type: string;
@@ -43,7 +61,7 @@ export type ScoredRecipe = Recipe & {
   catMems: Record<string, string[]>;
 };
 
-export function RecipeCard({ recipe }: { recipe: ScoredRecipe }) {
+export function RecipeCard({ recipe, onCook }: { recipe: ScoredRecipe; onCook?: (variant: string[]) => void }) {
   const isReady = !!recipe.directVariant;
   const isChain = !isReady && !!recipe.chainVariant;
   const isPartial = !isReady && !isChain && recipe.pct > 0;
@@ -58,6 +76,10 @@ export function RecipeCard({ recipe }: { recipe: ScoredRecipe }) {
                       isPartial ? "border-partial/50" : "border-border";
 
   const barColor = isReady ? "bg-ready" : isChain ? "bg-chain" : isPartial ? "bg-partial" : "bg-muted";
+
+  const cookCount = isReady && recipe.directVariant
+    ? maxCooks(recipe.directVariant, recipe.haveMap, recipe.catMems)
+    : 0;
 
   return (
     <div className={clsx("relative border p-4 bg-black/60 group transition-all duration-300", borderColor)}>
@@ -105,7 +127,7 @@ export function RecipeCard({ recipe }: { recipe: ScoredRecipe }) {
             <div key={idx} className="flex items-center">
               {idx > 0 && <span className="text-border mx-1">+</span>}
               <a
-                href={wikiUrl(baseName(ing))}
+                href={ingWikiUrl(ing)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={clsx(
@@ -126,6 +148,21 @@ export function RecipeCard({ recipe }: { recipe: ScoredRecipe }) {
         <div className="text-xs text-chain mb-3 flex items-center gap-2 bg-chain/5 p-2 border border-chain/20 font-sans">
           <Zap size={14} className="animate-pulse" />
           <span>CRAFT FIRST: <span className="font-bold">{recipe.chainSteps.join(' → ')}</span></span>
+        </div>
+      )}
+
+      {isReady && onCook && recipe.directVariant && (
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/30">
+          <span className="text-xs text-muted-foreground font-mono uppercase">
+            Can cook: <span className="text-ready">{cookCount}×</span>
+          </span>
+          <button
+            onClick={() => onCook(recipe.directVariant!)}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-ready/60 text-ready bg-ready/10 hover:bg-ready hover:text-black transition-colors uppercase font-semibold tracking-wide font-sans"
+          >
+            <Flame size={12} />
+            Cook × 1
+          </button>
         </div>
       )}
 

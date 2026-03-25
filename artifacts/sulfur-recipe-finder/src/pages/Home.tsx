@@ -154,6 +154,29 @@ export default function Home() {
     addLog(`INVENTORY UPDATED: ${map.size} UNIQUE ITEMS.`);
   }
 
+  function cookOnce(variant: string[]) {
+    const next = new Map(activeIngs);
+    for (const ing of variant) {
+      const base = baseName(ing);
+      const qty = requiredQty(ing);
+      if ((next.get(base) ?? 0) >= qty) {
+        const newQty = (next.get(base) ?? 0) - qty;
+        if (newQty <= 0) next.delete(base); else next.set(base, newQty);
+        continue;
+      }
+      const members = catMems[base] ?? [];
+      const member = members.find(m => (next.get(m) ?? 0) >= qty);
+      if (member) {
+        const newQty = (next.get(member) ?? 0) - qty;
+        if (newQty <= 0) next.delete(member); else next.set(member, newQty);
+      }
+    }
+    setActiveIngs(next);
+    const newText = Array.from(next.entries()).map(([n, q]) => q > 1 ? `${n} x${q}` : n).join(", ");
+    setInputText(newText);
+    addLog(`COOKED: ${variant.map(i => i.toUpperCase()).join(" + ")}`);
+  }
+
   function toggleIng(name: string) {
     const next = new Map(activeIngs);
     if (next.has(name)) next.delete(name);
@@ -340,7 +363,7 @@ export default function Home() {
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <RecipeCard recipe={r} />
+                        <RecipeCard recipe={r} onCook={cookOnce} />
                       </motion.div>
                     ))}
                   </AnimatePresence>
