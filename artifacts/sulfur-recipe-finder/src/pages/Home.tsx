@@ -195,7 +195,8 @@ export default function Home() {
           <div className="lg:col-span-4 flex flex-col gap-6">
             
             <CyberPanel title="INVENTORY LINK">
-              <p className="text-xs text-muted-foreground mb-2 uppercase">Input raw materials (comma or newline separated):</p>
+              <p className="text-xs text-muted-foreground mb-1 uppercase">Input raw materials (comma or newline separated):</p>
+              <p className="text-xs text-muted-foreground/60 mb-2 font-mono">e.g. <span className="text-primary/70">oats x2, egg, rhubarb x3</span> — use <span className="text-primary/70">x&lt;n&gt;</span> to specify quantity</p>
               <textarea 
                 value={inputText}
                 onChange={e => setInputText(e.target.value)}
