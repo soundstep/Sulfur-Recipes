@@ -111,6 +111,7 @@ export default function Home() {
   const { mutate: refreshRecipes, isPending: isRefreshing } = useRefreshRecipesData();
 
   const recipes = data?.recipes || [];
+  const catMems = data?.categoryMembers ?? {};
   
   useEffect(() => {
     handleSetIngredients(DEFAULT_INGS);
@@ -165,15 +166,15 @@ export default function Home() {
 
   const scoredRecipes = useMemo(() => {
     if (!recipes || recipes.length === 0) return [];
-    const craftableSet = buildCraftableSet(activeIngs, recipes);
+    const craftableSet = buildCraftableSet(activeIngs, recipes, catMems);
     
-    return recipes.map(r => scoreRecipe(r, activeIngs, craftableSet)).sort((a, b) => {
+    return recipes.map(r => scoreRecipe(r, activeIngs, craftableSet, catMems)).sort((a, b) => {
       const rankA = a.directVariant ? 3 : a.chainVariant ? 2 : a.pct > 0 ? 1 : 0;
       const rankB = b.directVariant ? 3 : b.chainVariant ? 2 : b.pct > 0 ? 1 : 0;
       if (rankB !== rankA) return rankB - rankA;
       return b.pct - a.pct;
     });
-  }, [recipes, activeIngs]);
+  }, [recipes, activeIngs, catMems]);
 
   const toShow = useMemo(() => {
     if (filter === 'ready') return scoredRecipes.filter(r => r.directVariant);

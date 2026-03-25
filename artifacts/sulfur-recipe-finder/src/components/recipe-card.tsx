@@ -10,8 +10,13 @@ function requiredQty(ing: string): number {
   return m ? parseInt(m[1], 10) : 1;
 }
 
-function hasIngredient(ing: string, haveMap: Map<string, number>): boolean {
-  return (haveMap.get(baseName(ing)) ?? 0) >= requiredQty(ing);
+function hasIngredient(ing: string, haveMap: Map<string, number>, catMems: Record<string, string[]> = {}): boolean {
+  const base = baseName(ing);
+  const qty = requiredQty(ing);
+  if ((haveMap.get(base) ?? 0) >= qty) return true;
+  const members = catMems[base];
+  if (members) return members.some(m => (haveMap.get(m) ?? 0) >= qty);
+  return false;
 }
 
 function wikiUrl(name: string) {
@@ -35,6 +40,7 @@ export type ScoredRecipe = Recipe & {
   pct: number;
   haveMap: Map<string, number>;
   craftableSet: Set<string>;
+  catMems: Record<string, string[]>;
 };
 
 export function RecipeCard({ recipe }: { recipe: ScoredRecipe }) {
@@ -88,8 +94,12 @@ export function RecipeCard({ recipe }: { recipe: ScoredRecipe }) {
 
       <div className="flex flex-wrap gap-2 mb-4 mt-4">
         {recipe.displayVariant.map((ing, idx) => {
-          const have = hasIngredient(ing, recipe.haveMap);
-          const canCraft = !have && recipe.craftableSet.has(baseName(ing));
+          const have = hasIngredient(ing, recipe.haveMap, recipe.catMems);
+          const base = baseName(ing);
+          const canCraft = !have && (
+            recipe.craftableSet.has(base) ||
+            (recipe.catMems[base] ?? []).some(m => recipe.craftableSet.has(m))
+          );
           
           return (
             <div key={idx} className="flex items-center">
