@@ -37,6 +37,28 @@ function hasIngredient(ing: string, haveMap: Map<string, number>, catMems: Recor
   return false;
 }
 
+function canMakeVariantDirect(variant: string[], haveMap: Map<string, number>, catMems: Record<string, string[]> = {}): boolean {
+  const working = new Map(haveMap);
+  for (const ing of variant) {
+    const base = baseName(ing);
+    const qty = requiredQty(ing);
+    if ((working.get(base) ?? 0) >= qty) {
+      working.set(base, (working.get(base) ?? 0) - qty);
+      continue;
+    }
+    const members = catMems[base];
+    if (members) {
+      const member = members.find(m => (working.get(m) ?? 0) >= qty);
+      if (member) {
+        working.set(member, (working.get(member) ?? 0) - qty);
+        continue;
+      }
+    }
+    return false;
+  }
+  return true;
+}
+
 function buildCraftableSet(haveMap: Map<string, number>, allRecipes: Recipe[], catMems: Record<string, string[]> = {}) {
   const craftable = new Set<string>(haveMap.keys());
   let changed = true;
@@ -45,14 +67,19 @@ function buildCraftableSet(haveMap: Map<string, number>, allRecipes: Recipe[], c
     for (const r of allRecipes) {
       const rLow = r.name.toLowerCase();
       if (craftable.has(rLow)) continue;
-      const canMake = r.variants.some(v => v.every(i => {
-        if (hasIngredient(i, haveMap, catMems)) return true;
-        const base = baseName(i);
-        if (craftable.has(base)) return true;
-        const members = catMems[base];
-        if (members && members.some(m => craftable.has(m))) return true;
-        return false;
-      }));
+      const canMake = r.variants.some(v => {
+        if (v.every(i => hasIngredient(i, haveMap, catMems))) {
+          return canMakeVariantDirect(v, haveMap, catMems);
+        }
+        return v.every(i => {
+          if (hasIngredient(i, haveMap, catMems)) return true;
+          const base = baseName(i);
+          if (craftable.has(base)) return true;
+          const members = catMems[base];
+          if (members && members.some(m => craftable.has(m))) return true;
+          return false;
+        });
+      });
       if (canMake) {
         craftable.add(rLow);
         changed = true;
@@ -70,7 +97,7 @@ function scoreRecipe(
 ): ScoredRecipe {
   const have = (i: string) => hasIngredient(i, haveMap, catMems);
 
-  const directVariant = recipe.variants.find(v => v.every(have));
+  const directVariant = recipe.variants.find(v => canMakeVariantDirect(v, haveMap, catMems));
   const chainVariant = !directVariant && recipe.variants.find(v => v.every(i => {
     if (have(i)) return true;
     const base = baseName(i);
