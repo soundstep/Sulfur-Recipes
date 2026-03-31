@@ -40,7 +40,7 @@ const HARDCODED_CATEGORIES: Record<string, string[]> = {
   "flesh":     ["craw flesh", "dog flesh", "goblin flesh", "hellshrew flesh", "human flesh", "shav'wa flesh"],
   "skins":     ["craw skin", "dog skin", "goblin skin", "hellshrew skin", "human skin", "shav'wa skin"],
   "milk":      ["buttermilk", "low fat milk", "skimmed milk", "whole milk"],
-  "mushrooms": ["false sulfcap", "karl-oskar", "mycota squamata", "rödsopp", "swing-ding", "velvet bell"],
+  "mushrooms": ["karl-oskar", "mycota squamata", "rödsopp", "swing-ding", "velvet bell"],
   "nuts":      ["hazelnut", "peanut", "pine nuts", "walnut"],
   "water":     ["bottled water", "mineral water"],
 };
