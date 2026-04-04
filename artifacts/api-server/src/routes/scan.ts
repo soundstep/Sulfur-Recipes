@@ -11,7 +11,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 
 
 const ICON_CACHE_DIR = path.join(process.cwd(), ".icon-cache");
 const HASH_FILE = path.join(ICON_CACHE_DIR, "hashes.json");
-const PHASH_THRESHOLD = 12;
+const PHASH_THRESHOLD = 18;
 
 interface HashEntry { name: string; hash: string }
 
@@ -241,8 +241,10 @@ async function detectCells(imgBuf: Buffer): Promise<Cell[]> {
     }
   }
 
-  const rThresh = Math.max(6, W * 0.06);
-  const cThresh = Math.max(6, H * 0.06);
+  // True grid lines span the full image width/height; item icons only cover one cell.
+  // 50% threshold separates full-width orange lines from orange-tinted items.
+  const rThresh = W * 0.5;
+  const cThresh = H * 0.5;
   const hLines = findMidpoints(rowHits, rThresh);
   const vLines = findMidpoints(colHits, cThresh);
 
@@ -253,7 +255,7 @@ async function detectCells(imgBuf: Buffer): Promise<Cell[]> {
     for (let c = 0; c < vLines.length - 1; c++) {
       const y = hLines[r], x = vLines[c];
       const h = hLines[r + 1] - y, w = vLines[c + 1] - x;
-      if (w > 18 && h > 18) cells.push({ x, y, w, h });
+      if (w > 40 && h > 40) cells.push({ x, y, w, h });
     }
   }
   return cells;
@@ -300,6 +302,8 @@ router.post("/recipes/scan-screenshot", upload.single("image"), async (req, res)
 
     const matched: string[] = [];
     const seen = new Set<string>();
+    const debugMode = req.query.debug === "1";
+    const debugRows: { cell: Cell; best: string; dist: number; top3: { name: string; dist: number }[] }[] = [];
 
     for (const cell of cells) {
       try {
@@ -315,21 +319,35 @@ router.post("/recipes/scan-screenshot", upload.single("image"), async (req, res)
         const cellBuf = await sharp(req.file.buffer).extract(ex).toBuffer();
         const cellHash = await phash(cellBuf);
 
-        let best = "", bestDist = PHASH_THRESHOLD;
+        let best = "", bestDist = 64, secondDist = 64;
+        const allDists: { name: string; dist: number }[] = [];
         for (const [name, h] of hashes) {
           const d = hammingDist(cellHash, h);
-          if (d < bestDist) { bestDist = d; best = name; }
+          if (debugMode) allDists.push({ name, dist: d });
+          if (d < bestDist) { secondDist = bestDist; bestDist = d; best = name; }
+          else if (d < secondDist) { secondDist = d; }
         }
 
-        if (best && !seen.has(best)) {
+        if (debugMode) {
+          allDists.sort((a, b) => a.dist - b.dist);
+          debugRows.push({ cell, best, dist: bestDist, top3: allDists.slice(0, 3) });
+        }
+
+        // Accept match only if: within threshold AND best is strictly better than second
+        // (tied second = random-looking item like circuit board or weapon → reject)
+        const confident = bestDist <= PHASH_THRESHOLD && secondDist > bestDist;
+        if (confident && best && !seen.has(best)) {
           seen.add(best);
-          const display = hashes.has(best) ? best : best;
-          matched.push(display);
+          matched.push(best);
         }
       } catch { }
     }
 
-    res.json({ items: matched, detected: cells.length });
+    if (debugMode) {
+      res.json({ items: matched, detected: cells.length, debug: debugRows });
+    } else {
+      res.json({ items: matched, detected: cells.length });
+    }
   } catch (err) {
     req.log.error({ err }, "scan-screenshot failed");
     res.status(500).json({ error: "Screenshot analysis failed" });
