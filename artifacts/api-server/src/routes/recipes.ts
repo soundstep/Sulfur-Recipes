@@ -54,9 +54,10 @@ function cleanLabel(label: string): string {
     .trim();
 }
 
-function parseRecipeRows(wikitext: string): { variants: string[][]; categoryMap: Record<string, string> } {
+function parseRecipeRows(wikitext: string): { variants: string[][]; categoryMap: Record<string, string>; specificMembers: Record<string, string[]> } {
   const variants: string[][] = [];
   const categoryMap: Record<string, string> = {};
+  const specificMembers: Record<string, string[]> = {};
 
   const recipeSection = wikitext.split(/==\s*[Rr]ecipes?\s*==/)[1] || wikitext;
 
@@ -86,7 +87,11 @@ function parseRecipeRows(wikitext: string): { variants: string[][]; categoryMap:
             const key = keyMatch[1].trim();
             if (key.startsWith(":Category:")) {
               const catName = key.replace(":Category:", "").trim();
-              categoryMap[label.toLowerCase()] = catName;
+              if (label.includes("/")) {
+                specificMembers[label.toLowerCase()] = label.split("/").map(s => s.trim().toLowerCase());
+              } else {
+                categoryMap[label.toLowerCase()] = catName;
+              }
             }
           }
         }
@@ -103,7 +108,7 @@ function parseRecipeRows(wikitext: string): { variants: string[][]; categoryMap:
     }
   }
 
-  return { variants, categoryMap };
+  return { variants, categoryMap, specificMembers };
 }
 
 function detectType(wikitext: string): string {
@@ -118,28 +123,28 @@ function resolveCategoryMembers(catName: string): string[] {
   return HARDCODED_CATEGORIES[key] ?? [];
 }
 
-async function fetchRecipeFromApi(slug: string): Promise<{ recipe: Recipe | null; categoryMap: Record<string, string> }> {
+async function fetchRecipeFromApi(slug: string): Promise<{ recipe: Recipe | null; categoryMap: Record<string, string>; specificMembers: Record<string, string[]> }> {
   const url = `https://sulfur.wiki.gg/api.php?action=parse&page=${slug}&prop=wikitext&format=json`;
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": "SulfurRecipeFinder/1.0" },
       signal: AbortSignal.timeout(10000),
     });
-    if (!res.ok) return { recipe: null, categoryMap: {} };
+    if (!res.ok) return { recipe: null, categoryMap: {}, specificMembers: {} };
 
     const data = await res.json() as { parse?: { title?: string; wikitext?: { "*": string } }; error?: unknown };
-    if (data.error || !data.parse?.wikitext?.["*"]) return { recipe: null, categoryMap: {} };
+    if (data.error || !data.parse?.wikitext?.["*"]) return { recipe: null, categoryMap: {}, specificMembers: {} };
 
     const wikitext = data.parse.wikitext["*"];
     const name = data.parse.title || decodeURIComponent(slug).replace(/_/g, " ");
-    const { variants, categoryMap } = parseRecipeRows(wikitext);
+    const { variants, categoryMap, specificMembers } = parseRecipeRows(wikitext);
 
-    if (variants.length === 0) return { recipe: null, categoryMap: {} };
+    if (variants.length === 0) return { recipe: null, categoryMap: {}, specificMembers: {} };
 
     const type = detectType(wikitext);
-    return { recipe: { name, type, variants }, categoryMap };
+    return { recipe: { name, type, variants }, categoryMap, specificMembers };
   } catch {
-    return { recipe: null, categoryMap: {} };
+    return { recipe: null, categoryMap: {}, specificMembers: {} };
   }
 }
 
@@ -159,14 +164,16 @@ async function getRecipesData(): Promise<RecipeCache> {
 
   const results: Recipe[] = [];
   const globalCategoryMap: Record<string, string> = {};
+  const globalSpecificMembers: Record<string, string[]> = {};
   const CONCURRENCY = 10;
 
   for (let i = 0; i < RECIPE_SLUGS.length; i += CONCURRENCY) {
     const batch = RECIPE_SLUGS.slice(i, i + CONCURRENCY);
     const fetched = await Promise.all(batch.map(s => fetchRecipeFromApi(s)));
-    fetched.forEach(({ recipe, categoryMap }) => {
+    fetched.forEach(({ recipe, categoryMap, specificMembers }) => {
       if (recipe) results.push(recipe);
       Object.assign(globalCategoryMap, categoryMap);
+      Object.assign(globalSpecificMembers, specificMembers);
     });
   }
 
@@ -174,6 +181,7 @@ async function getRecipesData(): Promise<RecipeCache> {
   for (const [label, catName] of Object.entries(globalCategoryMap)) {
     categoryMembers[label] = resolveCategoryMembers(catName);
   }
+  Object.assign(categoryMembers, globalSpecificMembers);
 
   cachedData = { recipes: results, categoryMembers };
   cacheTimestamp = Date.now();
