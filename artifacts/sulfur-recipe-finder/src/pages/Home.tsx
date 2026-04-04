@@ -246,6 +246,27 @@ export default function Home() {
     });
   }, [recipes, activeIngs, catMems]);
 
+  const finalProductsInInventory = useMemo(() => {
+    if (!recipes || recipes.length === 0) return [];
+    const recipeNameSet = new Set(recipes.map(r => baseName(r.name)));
+    const ingredientSet = new Set<string>();
+    for (const r of recipes) {
+      for (const variant of r.variants) {
+        for (const ing of variant) {
+          ingredientSet.add(baseName(ing));
+        }
+      }
+    }
+    const flagged: string[] = [];
+    for (const [name] of activeIngs) {
+      const normalized = baseName(name);
+      if (recipeNameSet.has(normalized) && !ingredientSet.has(normalized)) {
+        flagged.push(name);
+      }
+    }
+    return flagged;
+  }, [recipes, activeIngs]);
+
   const toShow = useMemo(() => {
     if (filter === 'ready') return scoredRecipes.filter(r => r.directVariant);
     if (filter === 'chain') return scoredRecipes.filter(r => !r.directVariant && r.chainVariant);
@@ -295,6 +316,30 @@ export default function Home() {
               <CyberButton onClick={() => handleSetIngredients(inputText)} className="w-full mt-3">
                 Sync Inventory
               </CyberButton>
+
+              <AnimatePresence>
+                {finalProductsInInventory.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="mt-3 border border-amber-500/50 bg-amber-500/10 p-3 overflow-hidden"
+                  >
+                    <p className="text-amber-400 text-xs uppercase font-semibold tracking-wide mb-2 flex items-center gap-1.5">
+                      <AlertCircle size={13} />
+                      Final products — cannot be used as ingredients
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {finalProductsInInventory.map(name => (
+                        <span key={name} className="text-[10px] sm:text-xs px-2 py-1 border border-amber-500/40 text-amber-300 bg-amber-500/10 uppercase font-semibold tracking-wide">
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <div className="mt-6">
                 <h3 className="text-xs text-muted-foreground uppercase border-b border-border pb-1 mb-3">Active Items ({activeIngs.size})</h3>
