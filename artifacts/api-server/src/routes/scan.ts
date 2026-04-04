@@ -348,9 +348,14 @@ router.post("/recipes/scan-screenshot", upload.single("image"), async (req, res)
 
     const counts = new Map<string, number>();
     const debugMode = req.query.debug === "1";
-    const debugRows: { cell: Cell; best: string; dist: number; color?: { h: number; s: number }; top3: { name: string; dist: number }[] }[] = [];
+    const debugRows: { cell: Cell; best: string; dist: number; color?: { h: number; s: number }; top3: { name: string; dist: number }[]; merged?: boolean }[] = [];
 
-    for (const cell of cells) {
+    // ---- Phase 1: Individual cell matching ----
+    type CellResult = { best: string; bestDist: number; secondDist: number; confident: boolean; buf: Buffer };
+    const cellResults = new Map<number, CellResult>();
+
+    for (let idx = 0; idx < cells.length; idx++) {
+      const cell = cells[idx];
       try {
         if (await isCellEmpty(req.file.buffer, cell)) continue;
 
@@ -373,8 +378,6 @@ router.post("/recipes/scan-screenshot", upload.single("image"), async (req, res)
           else if (d < secondDist) { secondDist = d; }
         }
 
-        // When two items tie at the same Hamming distance, use cell color to break the tie.
-        // This handles e.g. brain vs cotton candy (4-bit hash difference) and potato vs stew.
         let cellColor: { h: number; s: number } | undefined;
         if (bestDist === secondDist && bestDist <= PHASH_THRESHOLD) {
           const tiedWithHints: string[] = [];
@@ -395,7 +398,7 @@ router.post("/recipes/scan-screenshot", upload.single("image"), async (req, res)
               }
               if (colorWinner) {
                 best = colorWinner;
-                secondDist = bestDist + 1; // open the gap so the match is accepted below
+                secondDist = bestDist + 1;
               }
             }
           }
@@ -406,13 +409,118 @@ router.post("/recipes/scan-screenshot", upload.single("image"), async (req, res)
           debugRows.push({ cell, best, dist: bestDist, color: cellColor, top3: allDists.slice(0, 3) });
         }
 
-        // Accept match only if: within threshold AND best is strictly better than second
-        // (tied second without color hint = random-looking item → reject)
+        const confident = bestDist <= PHASH_THRESHOLD && secondDist > bestDist;
+        cellResults.set(idx, { best, bestDist, secondDist, confident, buf: cellBuf });
+      } catch { }
+    }
+
+    // ---- Phase 2: Adjacent pair (multi-cell item) matching ----
+    // Items that span 2 cells horizontally or vertically appear split across two cells.
+    // Merging adjacent cells and trying rotations can recover them.
+    const claimedCells = new Set<number>();
+
+    const tryMergedPair = async (
+      idxA: number, idxB: number,
+      bufA: Buffer, bufB: Buffer,
+      wA: number, hA: number, wB: number, hB: number,
+      horizontal: boolean
+    ): Promise<boolean> => {
+      const rA = cellResults.get(idxA);
+      const rB = cellResults.get(idxB);
+      // Only merge when NEITHER cell has a confident individual match.
+      // A confident match means bestDist ≤ PHASH_THRESHOLD with a clear gap over second-best;
+      // such a cell is almost certainly a real single-cell item and merging it with a
+      // neighbour would produce false positives.  Multi-cell items produce half-cells that
+      // typically fail the individual confidence test (dist > 18 or tied), which is the
+      // signal we use to trigger the merge pass.
+      if (rA?.confident || rB?.confident) return false;
+
+      const mergedW = horizontal ? wA + wB : Math.max(wA, wB);
+      const mergedH = horizontal ? Math.max(hA, hB) : hA + hB;
+      let merged: Buffer;
+      try {
+        merged = await sharp({
+          create: { width: mergedW, height: mergedH, channels: 3, background: { r: 15, g: 15, b: 15 } }
+        }).composite([
+          { input: await sharp(bufA).removeAlpha().resize(wA, hA, { fit: "fill" }).toBuffer(), left: 0, top: 0 },
+          { input: await sharp(bufB).removeAlpha().resize(wB, hB, { fit: "fill" }).toBuffer(), left: horizontal ? wA : 0, top: horizontal ? 0 : hA },
+        ]).png().toBuffer();
+      } catch { return false; }
+
+      // For horizontal merges: try 90° CW and CCW (to reconstruct portrait orientation)
+      // For vertical merges: try as-is and 180° (top-bottom flip)
+      const rotations = horizontal ? [90, 270] : [0, 180];
+
+      for (const rot of rotations) {
+        const rotBuf = rot === 0 ? merged : await sharp(merged).rotate(rot).toBuffer();
+        const mergedHash = await phash(rotBuf);
+
+        let best = "", bestDist = 64, secondDist = 64;
+        for (const [name, h] of hashes) {
+          const d = hammingDist(mergedHash, h);
+          if (d < bestDist) { secondDist = bestDist; bestDist = d; best = name; }
+          else if (d < secondDist) { secondDist = d; }
+        }
+
+        // The guard above ensures we only reach here when neither cell had a confident
+        // individual match, so using the normal threshold is safe.
         const confident = bestDist <= PHASH_THRESHOLD && secondDist > bestDist;
         if (confident && best) {
+          // Claim both cells so individual false-positives are suppressed
+          claimedCells.add(idxA);
+          claimedCells.add(idxB);
           counts.set(best, (counts.get(best) ?? 0) + 1);
+          if (debugMode) {
+            debugRows.push({
+              cell: cells[idxA],
+              best,
+              dist: bestDist,
+              top3: [{ name: best, dist: bestDist }],
+              merged: true,
+            });
+          }
+          return true;
         }
-      } catch { }
+      }
+      return false;
+    };
+
+    // Find all adjacent pairs
+    for (let i = 0; i < cells.length; i++) {
+      if (claimedCells.has(i)) continue;
+      for (let j = i + 1; j < cells.length; j++) {
+        if (claimedCells.has(j)) continue;
+        const ci = cells[i], cj = cells[j];
+        const bufI = cellResults.get(i)?.buf;
+        const bufJ = cellResults.get(j)?.buf;
+        if (!bufI || !bufJ) continue;
+
+        const padI = Math.floor(Math.min(ci.w, ci.h) * 0.08);
+        const padJ = Math.floor(Math.min(cj.w, cj.h) * 0.08);
+        const wI = Math.max(1, ci.w - padI * 2), hI = Math.max(1, ci.h - padI * 2);
+        const wJ = Math.max(1, cj.w - padJ * 2), hJ = Math.max(1, cj.h - padJ * 2);
+
+        // Horizontally adjacent: same row, directly next to each other
+        const hAdj = Math.abs((ci.y + ci.h / 2) - (cj.y + cj.h / 2)) < ci.h * 0.5
+          && Math.abs((ci.x + ci.w) - cj.x) < ci.w * 0.3;
+        // Vertically adjacent: same column, directly below each other
+        const vAdj = Math.abs((ci.x + ci.w / 2) - (cj.x + cj.w / 2)) < ci.w * 0.5
+          && Math.abs((ci.y + ci.h) - cj.y) < ci.h * 0.3;
+
+        if (hAdj) {
+          await tryMergedPair(i, j, bufI, bufJ, wI, hI, wJ, hJ, true);
+        } else if (vAdj) {
+          await tryMergedPair(i, j, bufI, bufJ, wI, hI, wJ, hJ, false);
+        }
+      }
+    }
+
+    // ---- Phase 3: Commit unclaimed individual matches ----
+    for (const [idx, r] of cellResults) {
+      if (claimedCells.has(idx)) continue;
+      if (r.confident && r.best) {
+        counts.set(r.best, (counts.get(r.best) ?? 0) + 1);
+      }
     }
 
     // Build output list; repeat items >1 as "name x3" (frontend parser handles this format)
