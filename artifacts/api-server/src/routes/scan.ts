@@ -81,7 +81,7 @@ async function phash(buf: Buffer): Promise<bigint> {
   const N = 32;
   const { data } = await sharp(buf)
     .flatten({ background: { r: 15, g: 15, b: 15 } })
-    .resize(N, N, { fit: "fill" })
+    .resize(N, N, { fit: "contain", background: { r: 15, g: 15, b: 15 } })
     .grayscale()
     .raw()
     .toBuffer({ resolveWithObject: true });
