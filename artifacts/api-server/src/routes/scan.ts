@@ -15,6 +15,52 @@ const PHASH_THRESHOLD = 18;
 
 interface HashEntry { name: string; hash: string }
 
+// Approximate dominant hue (HSV degrees) and saturation for items that frequently
+// produce identical pHash distances (i.e. their wiki icons look similar in DCT space).
+// Used only when two items tie at the same Hamming distance.
+const COLOR_HINTS: Record<string, { h: number; s: number }> = {
+  "brain":          { h: 350, s: 0.55 }, // warm reddish-pink organ
+  "cotton candy":   { h: 295, s: 0.30 }, // cool pastel purple-pink
+  "potato":         { h: 27,  s: 0.38 }, // warm brownish-beige
+  "stew":           { h: 14,  s: 0.58 }, // orange-brown soup
+  "cactus softdrink": { h: 150, s: 0.50 }, // green/teal cactus drink
+  "egg toddy":      { h: 42,  s: 0.45 }, // golden-yellow egg drink
+};
+
+async function getCellHueSat(buf: Buffer): Promise<{ h: number; s: number } | null> {
+  try {
+    const { data } = await sharp(buf)
+      .flatten({ background: { r: 15, g: 15, b: 15 } })
+      .resize(8, 8, { fit: "fill" })
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    let sumR = 0, sumG = 0, sumB = 0, cnt = 0;
+    for (let i = 0; i < data.length; i += 3) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      if (r + g + b > 60) { sumR += r; sumG += g; sumB += b; cnt++; }
+    }
+    if (cnt === 0) return null;
+
+    const r = sumR / cnt / 255, g = sumG / cnt / 255, b = sumB / cnt / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), delta = max - min;
+    const s = max === 0 ? 0 : delta / max;
+    let h = 0;
+    if (delta > 0.02) {
+      if (max === r) h = ((g - b) / delta + (g < b ? 6 : 0)) / 6 * 360;
+      else if (max === g) h = ((b - r) / delta + 2) / 6 * 360;
+      else h = ((r - g) / delta + 4) / 6 * 360;
+    }
+    return { h, s };
+  } catch { return null; }
+}
+
+function hueDistance(h1: number, h2: number): number {
+  const d = Math.abs(h1 - h2) % 360;
+  return Math.min(d, 360 - d);
+}
+
 let hashMap: Map<string, bigint> | null = null;
 let hashMapBuiltAt = 0;
 let buildingPromise: Promise<Map<string, bigint>> | null = null;
@@ -300,10 +346,9 @@ router.post("/recipes/scan-screenshot", upload.single("image"), async (req, res)
       return;
     }
 
-    const matched: string[] = [];
-    const seen = new Set<string>();
+    const counts = new Map<string, number>();
     const debugMode = req.query.debug === "1";
-    const debugRows: { cell: Cell; best: string; dist: number; top3: { name: string; dist: number }[] }[] = [];
+    const debugRows: { cell: Cell; best: string; dist: number; color?: { h: number; s: number }; top3: { name: string; dist: number }[] }[] = [];
 
     for (const cell of cells) {
       try {
@@ -328,19 +373,52 @@ router.post("/recipes/scan-screenshot", upload.single("image"), async (req, res)
           else if (d < secondDist) { secondDist = d; }
         }
 
+        // When two items tie at the same Hamming distance, use cell color to break the tie.
+        // This handles e.g. brain vs cotton candy (4-bit hash difference) and potato vs stew.
+        let cellColor: { h: number; s: number } | undefined;
+        if (bestDist === secondDist && bestDist <= PHASH_THRESHOLD) {
+          const tiedWithHints: string[] = [];
+          for (const [name, h] of hashes) {
+            if (hammingDist(cellHash, h) === bestDist && COLOR_HINTS[name]) {
+              tiedWithHints.push(name);
+            }
+          }
+          if (tiedWithHints.length >= 1) {
+            const hs = await getCellHueSat(cellBuf);
+            if (hs) {
+              cellColor = hs;
+              let colorWinner = "", colorScore = Infinity;
+              for (const name of tiedWithHints) {
+                const hint = COLOR_HINTS[name]!;
+                const score = hueDistance(hs.h, hint.h) + Math.abs(hs.s - hint.s) * 40;
+                if (score < colorScore) { colorScore = score; colorWinner = name; }
+              }
+              if (colorWinner) {
+                best = colorWinner;
+                secondDist = bestDist + 1; // open the gap so the match is accepted below
+              }
+            }
+          }
+        }
+
         if (debugMode) {
           allDists.sort((a, b) => a.dist - b.dist);
-          debugRows.push({ cell, best, dist: bestDist, top3: allDists.slice(0, 3) });
+          debugRows.push({ cell, best, dist: bestDist, color: cellColor, top3: allDists.slice(0, 3) });
         }
 
         // Accept match only if: within threshold AND best is strictly better than second
-        // (tied second = random-looking item like circuit board or weapon → reject)
+        // (tied second without color hint = random-looking item → reject)
         const confident = bestDist <= PHASH_THRESHOLD && secondDist > bestDist;
-        if (confident && best && !seen.has(best)) {
-          seen.add(best);
-          matched.push(best);
+        if (confident && best) {
+          counts.set(best, (counts.get(best) ?? 0) + 1);
         }
       } catch { }
+    }
+
+    // Build output list; repeat items >1 as "name x3" (frontend parser handles this format)
+    const matched: string[] = [];
+    for (const [name, count] of counts) {
+      matched.push(count > 1 ? `${name} x${count}` : name);
     }
 
     if (debugMode) {
