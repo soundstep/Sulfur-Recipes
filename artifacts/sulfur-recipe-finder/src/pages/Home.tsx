@@ -1,9 +1,9 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRecipesData, useRefreshRecipesData } from "@/hooks/use-recipes";
 import { CyberButton } from "@/components/ui/cyber-button";
 import { CyberPanel } from "@/components/ui/cyber-panel";
 import { RecipeCard, type ScoredRecipe, type Recipe } from "@/components/recipe-card";
-import { Database, Link as LinkIcon, RefreshCw, Download, AlertCircle, Terminal, Camera, Clipboard, CheckCircle } from "lucide-react";
+import { Database, Link as LinkIcon, RefreshCw, Download, AlertCircle, Terminal } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
 import { format } from "date-fns";
@@ -137,17 +137,11 @@ function scoreRecipe(
   };
 }
 
-type ScanState = "idle" | "scanning" | "done" | "error";
-
 export default function Home() {
   const [inputText, setInputText] = useState(() => localStorage.getItem(STORAGE_KEY) ?? DEFAULT_INGS);
   const [activeIngs, setActiveIngs] = useState<Map<string, number>>(new Map());
   const [filter, setFilter] = useState<'all' | 'ready' | 'chain' | 'partial'>('all');
   const [logs, setLogs] = useState<string[]>(["[SYS] OS Boot sequence complete...", "[SYS] Waiting for database sync..."]);
-  const [scanState, setScanState] = useState<ScanState>("idle");
-  const [scanMsg, setScanMsg] = useState("");
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading, isError, refetch, isFetching } = useRecipesData();
   const { mutate: refreshRecipes, isPending: isRefreshing } = useRefreshRecipesData();
@@ -240,79 +234,6 @@ export default function Home() {
     );
   }
 
-  async function handleScanFile(file: File) {
-    if (!file.type.startsWith("image/")) {
-      setScanState("error");
-      setScanMsg("File must be an image.");
-      return;
-    }
-    setScanState("scanning");
-    setScanMsg("");
-    try {
-      const formData = new FormData();
-      formData.append("image", file);
-      const res = await fetch("/api/recipes/scan-screenshot", { method: "POST", body: formData });
-      if (res.status === 503) {
-        const j = await res.json() as { error: string; progress?: number; total?: number };
-        const pct = j.total && j.total > 0 ? Math.round(((j.progress ?? 0) / j.total) * 100) : 0;
-        setScanState("error");
-        setScanMsg(`Icon library still loading (${pct}%)${pct < 100 ? " — try again in a moment" : ""}`);
-        addLog(`SCAN: ICON LIBRARY NOT READY (${pct}%). RETRY SHORTLY.`);
-        setTimeout(() => setScanState("idle"), 6000);
-        return;
-      }
-      if (!res.ok) throw new Error(await res.text());
-      const json = await res.json() as { items: string[]; detected: number; message?: string };
-      if (json.items.length === 0) {
-        setScanState("error");
-        setScanMsg(json.message ?? `Grid detected (${json.detected} cells) but no items matched.`);
-        addLog(`SCAN: ${json.detected} CELLS DETECTED, 0 MATCHED.`);
-      } else {
-        const newText = [inputText.trim(), ...json.items].filter(Boolean).join(", ");
-        setInputText(newText);
-        handleSetIngredients(newText);
-        setScanState("done");
-        setScanMsg(`${json.items.length} item${json.items.length !== 1 ? "s" : ""} detected.`);
-        addLog(`SCAN OK: ${json.items.length} ITEMS DETECTED FROM SCREENSHOT.`);
-      }
-    } catch {
-      setScanState("error");
-      setScanMsg("Scan failed. Make sure the server is running.");
-      addLog("SCAN: ERROR — SCREENSHOT ANALYSIS FAILED.");
-    }
-    setTimeout(() => setScanState("idle"), 5000);
-  }
-
-  async function handleClipboardPaste() {
-    try {
-      const items = await navigator.clipboard.read();
-      for (const item of items) {
-        const imageType = item.types.find(t => t.startsWith("image/"));
-        if (imageType) {
-          const blob = await item.getType(imageType);
-          await handleScanFile(new File([blob], "clipboard.png", { type: imageType }));
-          return;
-        }
-      }
-      setScanState("error");
-      setScanMsg("No image found in clipboard.");
-      setTimeout(() => setScanState("idle"), 3000);
-    } catch {
-      setScanState("error");
-      setScanMsg("Clipboard access denied. Try uploading the file instead.");
-      setTimeout(() => setScanState("idle"), 4000);
-    }
-  }
-
-  function handleDragOver(e: React.DragEvent) { e.preventDefault(); setIsDragging(true); }
-  function handleDragLeave() { setIsDragging(false); }
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleScanFile(file);
-  }
-
   const scoredRecipes = useMemo(() => {
     if (!recipes || recipes.length === 0) return [];
     const craftableSet = buildCraftableSet(activeIngs, recipes, catMems);
@@ -386,88 +307,15 @@ export default function Home() {
             <CyberPanel title="INVENTORY LINK">
               <p className="text-xs text-muted-foreground mb-1 uppercase">Input raw materials (comma or newline separated):</p>
               <p className="text-xs text-muted-foreground/60 mb-2 font-mono">e.g. <span className="text-primary/70">oats x2, egg, rhubarb x3</span> — use <span className="text-primary/70">x&lt;n&gt;</span> to specify quantity</p>
-
-              {/* Drop zone wrapping textarea */}
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={clsx(
-                  "relative transition-all",
-                  isDragging && "ring-2 ring-primary ring-offset-1 ring-offset-black"
-                )}
-              >
-                <textarea
-                  value={inputText}
-                  onChange={e => setInputText(e.target.value)}
-                  className="w-full h-32 bg-black border-2 border-border text-foreground p-3 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all custom-scrollbar resize-none selection:bg-primary selection:text-black"
-                  placeholder={"e.g. oats x2, egg, rhubarb x3\nor one per line:\noats x2\negg\nrhubarb x3"}
-                />
-                {isDragging && (
-                  <div className="absolute inset-0 bg-primary/10 border-2 border-primary border-dashed flex items-center justify-center pointer-events-none">
-                    <p className="text-primary font-display uppercase tracking-widest text-sm">Drop screenshot here</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex gap-2 mt-3">
-                <CyberButton onClick={() => handleSetIngredients(inputText)} className="flex-1">
-                  Sync Inventory
-                </CyberButton>
-                <CyberButton
-                  variant="secondary"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={scanState === "scanning"}
-                  title="Upload a screenshot of your inventory"
-                  className="px-3"
-                >
-                  <Camera size={15} />
-                </CyberButton>
-                <CyberButton
-                  variant="secondary"
-                  onClick={handleClipboardPaste}
-                  disabled={scanState === "scanning"}
-                  title="Paste screenshot from clipboard (Windows Snipping Tool)"
-                  className="px-3"
-                >
-                  <Clipboard size={15} />
-                </CyberButton>
-              </div>
-
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handleScanFile(f); e.target.value = ""; }}
+              <textarea 
+                value={inputText}
+                onChange={e => setInputText(e.target.value)}
+                className="w-full h-32 bg-black border-2 border-border text-foreground p-3 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all custom-scrollbar resize-none selection:bg-primary selection:text-black"
+                placeholder={"e.g. oats x2, egg, rhubarb x3\nor one per line:\noats x2\negg\nrhubarb x3"}
               />
-
-              {/* Scan status */}
-              <AnimatePresence>
-                {scanState !== "idle" && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className={clsx(
-                      "mt-2 px-3 py-2 text-xs flex items-center gap-2 font-mono overflow-hidden",
-                      scanState === "scanning" && "border border-primary/40 bg-primary/5 text-primary",
-                      scanState === "done" && "border border-green-500/40 bg-green-500/5 text-green-400",
-                      scanState === "error" && "border border-partial/40 bg-partial/5 text-partial",
-                    )}
-                  >
-                    {scanState === "scanning" && <RefreshCw size={12} className="animate-spin shrink-0" />}
-                    {scanState === "done" && <CheckCircle size={12} className="shrink-0" />}
-                    {scanState === "error" && <AlertCircle size={12} className="shrink-0" />}
-                    <span>
-                      {scanState === "scanning" ? "Analysing screenshot…" : scanMsg}
-                    </span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <CyberButton onClick={() => handleSetIngredients(inputText)} className="w-full mt-3">
+                Sync Inventory
+              </CyberButton>
 
               <AnimatePresence>
                 {finalProductsInInventory.length > 0 && (

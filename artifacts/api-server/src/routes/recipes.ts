@@ -155,19 +155,12 @@ interface RecipeCache {
 
 let cachedData: RecipeCache | null = null;
 let cacheTimestamp = 0;
-let fetchingPromise: Promise<RecipeCache> | null = null;
 const CACHE_TTL = 60 * 60 * 1000;
 
-export async function getRecipesData(): Promise<RecipeCache> {
+async function getRecipesData(): Promise<RecipeCache> {
   if (cachedData && Date.now() - cacheTimestamp < CACHE_TTL) {
     return cachedData;
   }
-  if (fetchingPromise) return fetchingPromise;
-  fetchingPromise = _fetchRecipes().finally(() => { fetchingPromise = null; });
-  return fetchingPromise;
-}
-
-async function _fetchRecipes(): Promise<RecipeCache> {
 
   const results: Recipe[] = [];
   const globalCategoryMap: Record<string, string> = {};
