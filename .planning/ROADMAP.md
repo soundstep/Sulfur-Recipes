@@ -34,7 +34,10 @@ Plans:
   2. Frontend loads in the browser and recipe searches return data
   3. `.env.example` documents every env var needed to run locally
   4. README (or replit.md) explains how to run the app with Docker
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — Dockerfiles for api-server (multi-stage esbuild) and frontend (multi-stage nginx)
+- [ ] 02-02-PLAN.md — docker-compose.yml, nginx.conf proxy, .env.example, replit.md local-dev section
 **UI hint**: yes
 
 ## Progress
