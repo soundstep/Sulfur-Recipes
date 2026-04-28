@@ -20,7 +20,10 @@ Two-phase migration: strip Replit/DB cruft from the codebase, then Dockerize bot
   2. Vite config builds without `PORT` or `BASE_PATH` env vars set — no throw, no error
   3. Replit Vite plugins are removed from `artifacts/sulfur-recipe-finder`
   4. `pnpm-workspace.yaml` and root `tsconfig.json` have no reference to `lib/db`
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 01-01-PLAN.md — Remove lib/db package and all postgres deps from workspace
+- [ ] 01-02-PLAN.md — Remove Replit Vite plugins and rewrite vite.config.ts with safe defaults
 
 ### Phase 2: Docker & DX
 **Goal**: Full app runs locally with `docker compose up` and developer onboarding is documented
@@ -38,5 +41,5 @@ Two-phase migration: strip Replit/DB cruft from the codebase, then Dockerize bot
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Cleanup | 0/? | Not started | - |
+| 1. Cleanup | 0/2 | Planned | - |
 | 2. Docker & DX | 0/? | Not started | - |
