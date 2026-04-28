@@ -29,10 +29,12 @@ WORKDIR /app
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY lib/api-zod/package.json ./lib/api-zod/
+COPY lib/recipe-core/package.json ./lib/recipe-core/
 COPY artifacts/api-server/package.json ./artifacts/api-server/
 RUN pnpm install --frozen-lockfile
 
 COPY lib/api-zod/ ./lib/api-zod/
+COPY lib/recipe-core/ ./lib/recipe-core/
 COPY artifacts/api-server/ ./artifacts/api-server/
 
 WORKDIR /app/artifacts/api-server
