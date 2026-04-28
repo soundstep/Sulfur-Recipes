@@ -49,3 +49,6 @@ Thumbs.db
 .local/
 
 .env
+
+# Wrangler local dev state
+.wrangler/
