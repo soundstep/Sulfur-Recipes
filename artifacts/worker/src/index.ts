@@ -24,7 +24,10 @@ export default {
     if (url.pathname === "/api/recipes" && request.method === "GET") {
       try {
         const data = await getRecipesData(cache);
-        return Response.json(data, { headers: corsHeaders });
+        return Response.json(
+          { ...data, count: data.recipes.length, cachedAt: new Date().toISOString() },
+          { headers: corsHeaders },
+        );
       } catch {
         return Response.json({ error: "Failed to fetch recipes" }, { status: 500, headers: corsHeaders });
       }
@@ -34,7 +37,10 @@ export default {
       try {
         await env.CACHE.delete("recipes");
         const data = await getRecipesData(cache);
-        return Response.json(data, { headers: corsHeaders });
+        return Response.json(
+          { ...data, count: data.recipes.length, cachedAt: new Date().toISOString() },
+          { headers: corsHeaders },
+        );
       } catch {
         return Response.json({ error: "Failed to refresh recipes" }, { status: 500, headers: corsHeaders });
       }
