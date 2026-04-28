@@ -1,3 +1,43 @@
+## Local Development (Docker)
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose plugin)
+
+### Quick Start
+
+```bash
+# 1. Copy env template
+cp .env.example .env
+
+# 2. Build image and start
+docker compose up --build
+
+# 3. Open in browser
+#    App: http://localhost:3000
+```
+
+### Endpoints
+
+| Path | Description |
+|------|-------------|
+| `http://localhost:3000` | Frontend (Vite build) |
+| `http://localhost:3000/api/health` | API health check |
+| `http://localhost:3000/api/recipes` | Recipes endpoint |
+
+### Stopping
+
+```bash
+docker compose down
+```
+
+### Rebuilding after code changes
+
+```bash
+docker compose up --build
+```
+
+---
+
 # Workspace
 
 ## Overview
