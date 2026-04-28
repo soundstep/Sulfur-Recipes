@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-04-28)
 ## Current Position
 
 Phase: 3 of 3 (Cloudflare Deploy)
-Plan: 2 of 3 in current phase
-Status: In Progress
-Last activity: 2026-04-28 — Plan 03-02 complete: Cloudflare Worker deployed
+Plan: 3 of 3 in current phase
+Status: Complete
+Last activity: 2026-04-28 — Plan 03-03 complete: Cloudflare Pages deployed
 
-Progress: [██████░░░░] 66%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -42,6 +42,8 @@ Progress: [██████░░░░] 66%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- "Pages Functions [[path]].ts catch-all proxy routes /api/* to Worker without CORS"
+- "wrangler pages secret put sets WORKER_URL for Pages (not .env)"
 - Remove `lib/db` entirely — zero tables, never imported
 - Clean `vite.config.ts` — Replit plugins + mandatory PORT/BASE_PATH removed
 - Docker Compose for local dev — standard approach
@@ -69,5 +71,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-04-28
-Stopped at: Completed 03-02-PLAN.md (Cloudflare Worker deployed)
+Stopped at: Completed 03-03-PLAN.md (Cloudflare Pages deployed — https://sulfur-recipes.pages.dev)
 Resume file: None

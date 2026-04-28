@@ -8,7 +8,7 @@ Three-phase migration: strip Replit/DB cruft, Dockerize for local dev, then depl
 
 - [x] **Phase 1: Cleanup** - Remove Replit dependencies, Vite env-var throws, and the unused DB package
 - [x] **Phase 2: Docker & DX** - Containerize both services, wire them together, document local dev
-- [ ] **Phase 3: Cloudflare Deploy** - Frontend on Cloudflare Pages, API rewritten as a Cloudflare Worker with KV cache
+- [x] **Phase 3: Cloudflare Deploy** - Frontend on Cloudflare Pages, API rewritten as a Cloudflare Worker with KV cache
 
 ## Phase Details
 
@@ -54,7 +54,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md — Extract recipe logic into `lib/recipe-core` (CacheStore interface + MemoryAdapter; wire Express)
 - [x] 03-02-PLAN.md — Cloudflare Worker (`artifacts/worker`) with KV adapter; deploy Worker
-- [ ] 03-03-PLAN.md — Cloudflare Pages deploy + Pages Functions proxy for `/api/*`
+- [x] 03-03-PLAN.md — Cloudflare Pages deploy + Pages Functions proxy for `/api/*`
 **Notes**: Core logic isolated in `lib/recipe-core`; CF-specific code confined to `artifacts/worker/`. Portability: swap `artifacts/worker/` to migrate to another host.
 
 ## Progress
@@ -63,4 +63,4 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Cleanup | 2/2 | ✅ Done | 2026-04-28 |
 | 2. Docker & DX | 2/2 | ✅ Done | 2026-04-28 |
-| 3. Cloudflare Deploy | 2/3 | In Progress | - |
+| 3. Cloudflare Deploy | 3/3 | ✅ Done | 2026-04-28 |
