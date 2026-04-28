@@ -2,12 +2,13 @@
 
 ## Overview
 
-Two-phase migration: strip Replit/DB cruft from the codebase, then Dockerize both services and document local dev. When done, `docker compose up` delivers a fully working app with no cloud accounts required.
+Three-phase migration: strip Replit/DB cruft, Dockerize for local dev, then deploy to Cloudflare (Pages + Workers + KV). When done, `docker compose up` works locally and the app runs for free on Cloudflare's edge with no sleep or cold starts.
 
 ## Phases
 
 - [ ] **Phase 1: Cleanup** - Remove Replit dependencies, Vite env-var throws, and the unused DB package
 - [ ] **Phase 2: Docker & DX** - Containerize both services, wire them together, document local dev
+- [ ] **Phase 3: Cloudflare Deploy** - Frontend on Cloudflare Pages, API rewritten as a Cloudflare Worker with KV cache
 
 ## Phase Details
 
@@ -40,9 +41,22 @@ Plans:
 - [ ] 02-02-PLAN.md — docker-compose.yml, nginx.conf proxy, .env.example, replit.md local-dev section
 **UI hint**: yes
 
+### Phase 3: Cloudflare Deploy
+**Goal**: App runs for free on Cloudflare with no sleep, no cold starts, global edge network
+**Depends on**: Phase 1 (Phase 2 optional — Docker is local-dev only)
+**Requirements**: HOST-01, HOST-02, HOST-03
+**Success Criteria** (what must be TRUE):
+  1. Frontend deploys to Cloudflare Pages and loads in the browser
+  2. API runs as a Cloudflare Worker — scrape routes return data
+  3. Cache uses Cloudflare KV with 1h TTL (no in-memory cache)
+  4. `wrangler deploy` ships both frontend and worker from the monorepo
+**Plans**: TBD — plan when ready
+**Notes**: In-memory cache replaced with KV (`env.CACHE.get/put`). Scraping logic unchanged.
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Cleanup | 0/2 | Planned | - |
 | 2. Docker & DX | 0/? | Not started | - |
+| 3. Cloudflare Deploy | 0/? | Not started | - |
