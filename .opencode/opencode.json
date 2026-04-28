@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "read": {
+      "/Users/RomuQuan/Documents/devserver/workspace/Sulfur-Recipes/.opencode/get-shit-done/*": "allow"
+    },
+    "external_directory": {
+      "/Users/RomuQuan/Documents/devserver/workspace/Sulfur-Recipes/.opencode/get-shit-done/*": "allow"
+    }
+  }
+}

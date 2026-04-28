@@ -172,7 +172,7 @@ export default function Home() {
     } else if (isError) {
       addLog("ERROR: CONNECTION REFUSED.");
     } else if (data) {
-      addLog(`SYNC OK: ${data.recipes.length} RECIPES LOADED.`);
+      addLog(`SYNC OK: ${data?.recipes?.length ?? 0} RECIPES LOADED.`);
       if (data.cachedAt) {
         addLog(`CACHE DATE: ${format(new Date(data.cachedAt), 'yyyy-MM-dd HH:mm:ss')}`);
       }
