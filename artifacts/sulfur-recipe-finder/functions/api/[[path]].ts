@@ -4,7 +4,7 @@ interface Env {
 
 export const onRequest: PagesFunction<Env> = async (context) => {
   const { request, env, params } = context;
-  const path = (params["path"] as string[]).join("/");
+  const path = params["path"] as string;
   const workerUrl = `${env.WORKER_URL}/api/${path}`;
 
   const url = new URL(request.url);
