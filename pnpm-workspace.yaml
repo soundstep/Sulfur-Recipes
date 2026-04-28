@@ -6,9 +6,6 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  '@replit/vite-plugin-cartographer': ^0.5.1
-  '@replit/vite-plugin-dev-banner': ^0.1.1
-  '@replit/vite-plugin-runtime-error-modal': ^0.0.6
   '@tailwindcss/vite': ^4.1.14
   '@tanstack/react-query': ^5.90.21
   '@types/node': ^25.3.3
@@ -17,7 +14,6 @@ catalog:
   '@vitejs/plugin-react': ^5.0.4
   class-variance-authority: ^0.7.1
   clsx: 2.1.1
-  drizzle-orm: ^0.45.1
   framer-motion: 12.35.1
   lucide-react: ^0.545.0
   react: 19.1.0
@@ -85,8 +81,8 @@ overrides:
   esbuild>@esbuild/win32-ia32: '-'
   esbuild>@esbuild/win32-x64: '-'
   lightningcss>lightningcss-android-arm64: '-'
-  lightningcss>lightningcss-darwin-arm64: '-'
-  lightningcss>lightningcss-darwin-x64: '-'
+  lightningcss>lightningcss-darwin-arm64: '*'
+  lightningcss>lightningcss-darwin-x64: '*'
   lightningcss>lightningcss-freebsd-x64: '-'
   lightningcss>lightningcss-linux-arm-gnueabihf: '-'
   lightningcss>lightningcss-linux-arm64-gnu: '-'
@@ -96,8 +92,8 @@ overrides:
   lightningcss>lightningcss-win32-x64-msvc: '-'
   rollup>@rollup/rollup-android-arm-eabi: '-'
   rollup>@rollup/rollup-android-arm64: '-'
-  rollup>@rollup/rollup-darwin-arm64: '-'
-  rollup>@rollup/rollup-darwin-x64: '-'
+  rollup>@rollup/rollup-darwin-arm64: '*'
+  rollup>@rollup/rollup-darwin-x64: '*'
   rollup>@rollup/rollup-freebsd-arm64: '-'
   rollup>@rollup/rollup-freebsd-x64: '-'
   rollup>@rollup/rollup-linux-arm-gnueabihf: '-'
