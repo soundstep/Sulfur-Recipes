@@ -6,8 +6,8 @@ Three-phase migration: strip Replit/DB cruft, Dockerize for local dev, then depl
 
 ## Phases
 
-- [ ] **Phase 1: Cleanup** - Remove Replit dependencies, Vite env-var throws, and the unused DB package
-- [ ] **Phase 2: Docker & DX** - Containerize both services, wire them together, document local dev
+- [x] **Phase 1: Cleanup** - Remove Replit dependencies, Vite env-var throws, and the unused DB package
+- [x] **Phase 2: Docker & DX** - Containerize both services, wire them together, document local dev
 - [ ] **Phase 3: Cloudflare Deploy** - Frontend on Cloudflare Pages, API rewritten as a Cloudflare Worker with KV cache
 
 ## Phase Details
@@ -23,8 +23,8 @@ Three-phase migration: strip Replit/DB cruft, Dockerize for local dev, then depl
   4. `pnpm-workspace.yaml` and root `tsconfig.json` have no reference to `lib/db`
 **Plans**: 2 plans
 Plans:
-- [ ] 01-01-PLAN.md — Remove lib/db package and all postgres deps from workspace
-- [ ] 01-02-PLAN.md — Remove Replit Vite plugins and rewrite vite.config.ts with safe defaults
+- [x] 01-01-PLAN.md — Remove lib/db package and all postgres deps from workspace
+- [x] 01-02-PLAN.md — Remove Replit Vite plugins and rewrite vite.config.ts with safe defaults
 
 ### Phase 2: Docker & DX
 **Goal**: Full app runs locally with `docker compose up` and developer onboarding is documented
@@ -37,8 +37,8 @@ Plans:
   4. README (or replit.md) explains how to run the app with Docker
 **Plans**: 2 plans
 Plans:
-- [ ] 02-01-PLAN.md — Dockerfiles for api-server (multi-stage esbuild) and frontend (multi-stage nginx)
-- [ ] 02-02-PLAN.md — docker-compose.yml, nginx.conf proxy, .env.example, replit.md local-dev section
+- [x] 02-01-PLAN.md — Dockerfiles for api-server (multi-stage esbuild) and frontend (multi-stage nginx)
+- [x] 02-02-PLAN.md — docker-compose.yml, nginx.conf proxy, .env.example, replit.md local-dev section
 **UI hint**: yes
 
 ### Phase 3: Cloudflare Deploy
@@ -57,6 +57,6 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Cleanup | 0/2 | Planned | - |
-| 2. Docker & DX | 0/? | Not started | - |
+| 1. Cleanup | 2/2 | ✅ Done | 2026-04-28 |
+| 2. Docker & DX | 2/2 | ✅ Done | 2026-04-28 |
 | 3. Cloudflare Deploy | 0/? | Not started | - |
