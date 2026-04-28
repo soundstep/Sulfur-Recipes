@@ -1,0 +1,10 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "sulfur-recipes-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "kv_namespaces": [
+    { "binding": "CACHE", "id": "5d919222bd0244ed81ed2c825f67cf2d" }
+  ]
+}
