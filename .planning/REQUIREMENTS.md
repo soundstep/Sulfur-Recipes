@@ -45,16 +45,16 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLEAN-01 | Phase 1 | Pending |
-| CLEAN-02 | Phase 1 | Pending |
-| CLEAN-03 | Phase 1 | Pending |
-| CLEAN-04 | Phase 1 | Pending |
-| DOCK-01 | Phase 2 | Pending |
-| DOCK-02 | Phase 2 | Pending |
-| DOCK-03 | Phase 2 | Pending |
-| DOCK-04 | Phase 2 | Pending |
-| DX-01 | Phase 2 | Pending |
-| DX-02 | Phase 2 | Pending |
+| CLEAN-01 | Phase 1: Cleanup | Pending |
+| CLEAN-02 | Phase 1: Cleanup | Pending |
+| CLEAN-03 | Phase 1: Cleanup | Pending |
+| CLEAN-04 | Phase 1: Cleanup | Pending |
+| DOCK-01 | Phase 2: Docker & DX | Pending |
+| DOCK-02 | Phase 2: Docker & DX | Pending |
+| DOCK-03 | Phase 2: Docker & DX | Pending |
+| DOCK-04 | Phase 2: Docker & DX | Pending |
+| DX-01 | Phase 2: Docker & DX | Pending |
+| DX-02 | Phase 2: Docker & DX | Pending |
 
 **Coverage:**
 - v1 requirements: 10 total
