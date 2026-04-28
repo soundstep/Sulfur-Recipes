@@ -1,7 +1,6 @@
 packages:
   - artifacts/*
   - lib/*
-  - lib/integrations/*
   - scripts
 
 autoInstallPeers: false
@@ -30,10 +29,6 @@ catalog:
   zod: ^3.25.76
 
 minimumReleaseAge: 1440
-
-minimumReleaseAgeExclude:
-  - '@replit/*'
-  - stripe-replit-sync
 
 onlyBuiltDependencies:
   - '@swc/core'
