@@ -18,7 +18,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 
 const KV_NAMESPACE_ID = "5d919222bd0244ed81ed2c825f67cf2d";
-const CACHE_TTL = 60 * 60; // 1 hour
+const CACHE_TTL = 60 * 60 * 24; // 24 hours
 
 const RECIPE_SLUGS = [
   "Admiral_White_Extra_Strong","Anti-Poison_Gum","Aspic","Banana_Bread","Banana_Sulfs",
